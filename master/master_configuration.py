@@ -3,7 +3,12 @@ import sys
 
 defaultconfig = {
     'master_port' : 7077,
-    'webui_port': 8080
+    'webui_port' : 8080,
+    'worker_timeout' : 60,
+    'spread_out' : True,
+    'default_core' : -1,
+    'reaper_iteration' : 15,
+    'executor_max_retries' : 10
 }
 
 def printconf():
