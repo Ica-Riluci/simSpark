@@ -4,6 +4,11 @@ import threading
 import time
 import json
 from daemon import runner
+import sys
+
+sys.path.append('publib')
+
+from publib import *
 
 def load_config(logs):
     config = {
@@ -88,3 +93,7 @@ class MasterDaemon():
             '''
             pass
         # listening - this part should contains how the daemon listens from socket $master_socket and the result
+
+app = MasterDaemon()
+daemon_runner = runner.DaemonRunner(app)
+daemon_runner.do_action()
