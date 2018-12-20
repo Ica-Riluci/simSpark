@@ -9,7 +9,7 @@ import sys
 
 sys.path.append('publib')
 
-from publib import connection
+from publib.SparkConn import *
 
 class SparkUnit:
     spark_unit_count = 0
@@ -76,7 +76,7 @@ class MasterDaemon:
                         'port' : w.port,
                         'value' : msg
                     }
-                    # self.listener.sendMessage(wrappedmsg)
+                    self.listener.sendMessage(wrappedmsg)
                 else:
                     self.logs.info('The worker %s is registered but not alive.' % (w.address))
                     self.logs.info('Trial to wake up the worker %s.' % (w.address))
@@ -102,7 +102,7 @@ class MasterDaemon:
           'port' : self.config['master_port'],
           'value' : msg
         }
-        # self.listener.sendMessage(wrappedmsg)
+        self.listener.sendMessage(wrappedmsg)
         # send msg
 
         timer = threading.Timer(2.0, self.send_check_worker_timeout)
@@ -183,7 +183,6 @@ class MasterDaemon:
         # app_next = 0
 
         self.workers = []
-        # worker_id = []
         # worker_ad = []
         
         # drivers = []
@@ -194,13 +193,13 @@ class MasterDaemon:
         timer = threading.Timer(2.0, self.send_check_worker_timeout)
         timer.start()
 
-        # self.listener = SparkConn('localhost', config['master_port'])
+        self.listener = SparkConn('localhost', self.config['master_port'])
 
         # onStart
 
         while True:
-            # msg = listener.accept()
-            # self.process(json.loads(msg['value']))
+            msg = self.listener.accept()
+            self.process(json.loads(msg['value']))
             pass
         # listening - this part should contains how the daemon listens from socket $master_socket and the result
 
