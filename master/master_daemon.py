@@ -2,13 +2,25 @@ import logging
 import logging.handlers
 import threading
 import time
+import datetime
 import json
 from daemon import runner
 import sys
 
 sys.path.append('publib')
 
-from publib import *
+from publib import connection
+
+class SparkUnit:
+    spark_unit_count = 0
+    def __init__(self, add, po):
+        self.address = add
+        self.port = po
+        self.lasthb = datetime.datetime.now()
+        self.alive = True
+        SparkUnit.spark_unit_count += 1
+# this class denotes all kind of units managed by master:
+# application, worker, driver
 
 def load_config(logs):
     config = {
@@ -31,7 +43,7 @@ def load_config(logs):
     return config
         
 
-class MasterDaemon():
+class MasterDaemon:
     def __init__(self):
         self.stdin_path = '/tmp/simSpark'
         self.stdout_path = '/tmp/simSpark'
@@ -45,6 +57,44 @@ class MasterDaemon():
         timer = threading.Timer(2.0, self.check_worker_timeout)
         timer.start()
         # restart timer
+
+    def process(self, msg):
+        if msg['type'] == 'check_worker_timeout':
+            pass
+        elif msg['type'] == 'reg_worker':
+            pass
+        elif msg['type'] == 'reg_app':
+            pass
+        elif msg['type'] == 'exec_stage_changed':
+            pass
+        elif msg['type'] == 'rm_app':
+            pass
+        elif msg['type'] == 'kill_exec':
+            pass
+        elif msg['type'] == 'driver_state_changed':
+            pass
+        elif msg['type'] == 'worker_hb':
+            pass
+        elif msg['type'] == 'master_change_ack':
+            pass
+        elif msg['type'] == 'worker_schedule_state_resp':
+            pass
+        elif msg['type'] == 'worker_latest_state':
+            pass
+        elif msg['type'] == 'unreg_app':
+            pass
+        elif msg['type'] == 'req_submit_driver':
+            pass
+        elif msg['type'] == 'req_kill_driver':
+            pass
+        elif msg['type'] == 'req_driver_status':
+            pass
+        elif msg['type'] == 'req_master_status':
+            pass
+        elif msg['type'] == 'req_exec':
+            pass
+        elif msg['type'] == 'kill_exec':
+            pass
 
 
     def run(self):
@@ -63,34 +113,32 @@ class MasterDaemon():
             return
         # fetch configuration
 
-        app_id = []
-        app_wl = []
-        app = []
-        app_ad = []
-        app_completed = []
-        app_next = 0
+        # app_id = []
+        # app_wl = []
+        # app = []
+        # app_ad = []
+        # app_completed = []
+        # app_next = 0
 
-        workers = []
-        worker_id = []
-        worker_ad = []
+        # workers = []
+        # worker_id = []
+        # worker_ad = []
         
-        drivers = []
-        driver_completed = []
-        driver_wl = []
+        # drivers = []
+        # driver_completed = []
+        # driver_wl = []
         # recording structure
 
         timer = threading.Timer(2.0, self.check_worker_timeout)
         timer.start()
-        
+
+        # listener = SparkConn('localhost', config['master_port'])
+
         # onStart
 
-        '''
-        socket conneting
-        '''
         while True:
-            '''
-            socking listening and processing
-            '''
+            # msg = listener.accept()
+            # self.process(json.loads(msg['value']))
             pass
         # listening - this part should contains how the daemon listens from socket $master_socket and the result
 
