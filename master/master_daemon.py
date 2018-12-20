@@ -2,7 +2,7 @@ import logging
 import logging.handlers
 import threading
 import time
-import datetime
+from datetime import timedelta, datetime
 import json
 from daemon import runner
 import sys
@@ -16,11 +16,18 @@ class SparkUnit:
     def __init__(self, add, po):
         self.address = add
         self.port = po
-        self.lasthb = datetime.datetime.now()
+        self.lasthb = datetime.now()
         self.alive = True
         SparkUnit.spark_unit_count += 1
 # this class denotes all kind of units managed by master:
 # application, worker, driver
+
+class WorkerUnit(SparkUnit):
+    worker_count = 0
+    def __init__(self, add, po):
+        super(WorkerUnit, self).__init__(add, po)
+        self.worker_id = WorkerUnit.worker_count + 1
+        WorkerUnit.worker_count += 1
 
 def load_config(logs):
     config = {
@@ -51,16 +58,37 @@ class MasterDaemon:
         self.pidfile_path =  '/tmp/simSpark.pid'
         self.pidfile_timeout = 5
 
-    def check_worker_timeout(self):
+    def send_check_worker_timeout(self):
+        # msg = {
+        #   'type' : 'check_worker_timeout',
+        #   'value' : ''
+        # }
+        # wrappedmsg = {
+        #   'host' : 'localhost',
+        #   'port' : self.config['master_port'],
+        #   'value' : msg
+        # }
+        # self.listener.sendMessage(wrappedmsg)
         # send msg
 
-        timer = threading.Timer(2.0, self.check_worker_timeout)
+        timer = threading.Timer(2.0, self.send_check_worker_timeout)
         timer.start()
         # restart timer
 
+    def check_worker_timeout(self):
+        for w in self.workers:
+            if w.alive == True:
+                if datetime.now() - w.lasthb > timedelta(microseconds=self.config['worker_timeout']):
+                    self.workers[self.workers.index(w)].alive = False
+                    self.logs.warning('Set worker %s to dead because the last heartbeat received is earlier than %d ms ago.' % (w.address, self.config['worker_time_out']))
+            else:
+                if datetime.now() - w.lasthb > timedelta(microseconds=(self.config['reaper_iteration'] + 1) * self.config['worker_timeout']):
+                    self.workers.remove(w)
+                    self.logs.warning('Bury worker %s because its heartbeat has been undetected for severl iterations.' % (w.address))
+
     def process(self, msg):
         if msg['type'] == 'check_worker_timeout':
-            pass
+            self.check_worker_timeout()
         elif msg['type'] == 'reg_worker':
             pass
         elif msg['type'] == 'reg_app':
@@ -98,18 +126,18 @@ class MasterDaemon:
 
 
     def run(self):
-        logs = logging.getLogger('simSparkLog')
-        logs.setLevel(logging.DEBUG)
+        self.logs = logging.getLogger('simSparkLog')
+        self.logs.setLevel(logging.DEBUG)
         fh = logging.handlers.RotatingFileHandler(
             '/tmp/simSpark.log',maxBytes=10000000,backupCount=5)
         fh.setLevel(logging.DEBUG)
         formatter = logging.Formatter(u'%(asctime)s [%(levelname)s] %(message)s')
         fh.setFormatter(formatter)
-        logs.addHandler(fh)
+        self.logs.addHandler(fh)
 
-        config = load_config(logs)
-        if config['default_core'] < 1 and config['default_core'] != -1:
-            logs.critical('Default core(s) assigned must be positive.')
+        self.config = load_config(self.logs)
+        if self.config['default_core'] < 1 and self.config['default_core'] != -1:
+            self.logs.critical('Default core(s) assigned must be positive.')
             return
         # fetch configuration
 
@@ -120,7 +148,7 @@ class MasterDaemon:
         # app_completed = []
         # app_next = 0
 
-        # workers = []
+        self.workers = []
         # worker_id = []
         # worker_ad = []
         
@@ -129,10 +157,10 @@ class MasterDaemon:
         # driver_wl = []
         # recording structure
 
-        timer = threading.Timer(2.0, self.check_worker_timeout)
+        timer = threading.Timer(2.0, self.send_check_worker_timeout)
         timer.start()
 
-        # listener = SparkConn('localhost', config['master_port'])
+        # self.listener = SparkConn('localhost', config['master_port'])
 
         # onStart
 
