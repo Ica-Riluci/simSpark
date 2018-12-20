@@ -24,10 +24,12 @@ class SparkUnit:
 
 class WorkerUnit(SparkUnit):
     worker_count = 0
-    def __init__(self, add, po):
-        super(WorkerUnit, self).__init__(add, po)
-        self.worker_id = WorkerUnit.worker_count + 1
+    def __init__(self, add, po, cores, ram):
         WorkerUnit.worker_count += 1
+        super(WorkerUnit, self).__init__(add, po)
+        self.worker_id = WorkerUnit.worker_count
+        self.used_cores = cores
+        self.all_ram = ram
 
 def load_config(logs):
     config = {
@@ -58,16 +60,48 @@ class MasterDaemon:
         self.pidfile_path =  '/tmp/simSpark.pid'
         self.pidfile_timeout = 5
 
+    def reg_worker(self, rw):
+        foundins = False
+        for w in self.workers:
+            if w.address == rw['host']:
+                foundins = True
+                if w.alive:
+                    self.logs.error('The worker %s is already registered and alive.' % (w.address))
+                    msg = {
+                        'type' : 'register_worker_failed',
+                        'value' : ''
+                    }
+                    wrappedmsg = {
+                        'host' : w.address,
+                        'port' : w.port,
+                        'value' : msg
+                    }
+                    # self.listener.sendMessage(wrappedmsg)
+                else:
+                    self.logs.info('The worker %s is registered but not alive.' % (w.address))
+                    self.logs.info('Trial to wake up the worker %s.' % (w.address))
+                    self.workers[self.workers.index(w)].alive = True
+                    self.workers[self.workers.index(w)].used_cores = rw['cores']
+                    self.workers[self.workers.index(w)].all_ram = rw['ram']
+                    self.workers[self.workers.index(w)].port = rw['port']
+                    self.workers[self.workers.index(w)].lasthb = datetime.now()
+                    break
+        if not foundins:
+            self.logs.info('The worker %s is new to the master.' % (rw.address))
+            new_workers = WorkerUnit(rw['host'], rw['port'], rw['cores'], rw['ram'])
+            self.workers.append(new_workers)
+
+
     def send_check_worker_timeout(self):
-        # msg = {
-        #   'type' : 'check_worker_timeout',
-        #   'value' : ''
-        # }
-        # wrappedmsg = {
-        #   'host' : 'localhost',
-        #   'port' : self.config['master_port'],
-        #   'value' : msg
-        # }
+        msg = {
+          'type' : 'check_worker_timeout',
+          'value' : ''
+        }
+        wrappedmsg = {
+          'host' : 'localhost',
+          'port' : self.config['master_port'],
+          'value' : msg
+        }
         # self.listener.sendMessage(wrappedmsg)
         # send msg
 
@@ -90,7 +124,7 @@ class MasterDaemon:
         if msg['type'] == 'check_worker_timeout':
             self.check_worker_timeout()
         elif msg['type'] == 'reg_worker':
-            pass
+            self.reg_worker(msg['value'])
         elif msg['type'] == 'reg_app':
             pass
         elif msg['type'] == 'exec_stage_changed':
