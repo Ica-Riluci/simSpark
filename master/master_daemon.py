@@ -31,6 +31,14 @@ class WorkerUnit(SparkUnit):
         self.used_cores = cores
         self.all_ram = ram
 
+class ApplicationUnit(SparkUnit):
+    app_count = 0
+    def __init__(self, add, po, app):
+        ApplicationUnit.app_count += 1
+        super(ApplicationUnit, self).__init__(add, po)
+        self.app_name = app['name']
+        self.app_id = ApplicationUnit.app_count
+
 def load_config(logs):
     config = {
         'master_port' : 7077,
@@ -91,6 +99,20 @@ class MasterDaemon:
             new_workers = WorkerUnit(rw['host'], rw['port'], rw['cores'], rw['ram'])
             self.workers.append(new_workers)
 
+    def reg_app(self, ra):
+        self.logs.info('Prepare to register application %s.' % (ra['app']['name']))
+        new_app = ApplicationUnit(ra['driver']['host'], ra['driver']['port'], ra['app'])
+        self.apps.append(new_app)
+        msg = {
+            'type' : 'reg_app_ack',
+            'value' : new_app.app_id
+        }
+        wrappedmsg = {
+            'host' : new_app.address,
+            'port' : new_app.port,
+            'value' : msg
+        }
+        self.listener.sendMessage(wrappedmsg)
 
     def send_check_worker_timeout(self):
         msg = {
@@ -126,7 +148,7 @@ class MasterDaemon:
         elif msg['type'] == 'reg_worker':
             self.reg_worker(msg['value'])
         elif msg['type'] == 'reg_app':
-            pass
+            self.reg_app(msg['value'])
         elif msg['type'] == 'exec_stage_changed':
             pass
         elif msg['type'] == 'rm_app':
@@ -177,7 +199,7 @@ class MasterDaemon:
 
         # app_id = []
         # app_wl = []
-        # app = []
+        self.apps = []
         # app_ad = []
         # app_completed = []
         # app_next = 0
