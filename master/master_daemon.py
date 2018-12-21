@@ -113,6 +113,7 @@ class MasterDaemon:
             'value' : msg
         }
         self.listener.sendMessage(wrappedmsg)
+        # self.schedule()
 
     def send_check_worker_timeout(self):
         msg = {
