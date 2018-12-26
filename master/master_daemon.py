@@ -31,6 +31,15 @@ class WorkerUnit(SparkUnit):
         self.used_cores = cores
         self.all_ram = ram
 
+class ExecutorUnit(SparkUnit):
+    executor_count = 0
+    def __init__(self, add, po):
+        ExecutorUnit.executor_count += 1
+        super(ExecutorUnit, self).__init__(add, po)
+        # address and port are information of its worker
+        self.exec_id = ExecutorUnit.executor_count
+        self.state = 'IDLE'
+
 class ApplicationUnit(SparkUnit):
     app_count = 0
     def __init__(self, add, po, app):
@@ -38,6 +47,9 @@ class ApplicationUnit(SparkUnit):
         super(ApplicationUnit, self).__init__(add, po)
         self.app_name = app['name']
         self.app_id = ApplicationUnit.app_count
+        self.driver_id = app['driver_id']
+        self.state = 'SLEEP'
+        self.exec_list = []
 
 def load_config(logs):
     config = {
@@ -143,6 +155,52 @@ class MasterDaemon:
                     self.workers.remove(w)
                     self.logs.warning('Bury worker %s because its heartbeat has been undetected for severl iterations.' % (w.address))
 
+    def search_app_by_id(self, id):
+        for i in range(0, len(self.apps)):
+            if self.apps[i].app_id == id:
+                return i
+        return -1
+
+    def search_exec_by_id(self, id):
+        for i in range(0, len(self.executors)):
+            if self.executors[i].exec_id == id:
+                return i
+        return -1
+    
+    def exec_stage_changed_ack(self, esc):
+        app_idx = self.search_app_by_id(esc['app_id'])
+        exec_idx = self.search_exec_by_id(esc['exec_id'])
+        if app_idx == -1 or exec_idx == -1:
+            self.logs.error('Application %d or executor %d not found.' % (esc['app_id'], esc['exec_id']))
+            return
+        if esc['exec_id'] not in self.apps[app_idx].exec_list:
+            self.logs.error('Executor %d is unknown to application %d.' % (esc['exec_id'], esc['app_id']))
+            return
+        old_state = self.executors[exec_idx].state
+        self.executors[exec_idx].state = esc['state']
+        if esc['state'] == 'RUNNING' and old_state != 'LANCHING':
+            self.logs.warning('Illegal state change for executor %d' % (esc['exec_id']))
+        msg = {
+            'type' : 'executor_update',
+            'value' : {
+                'id' : exec_idx,
+                'state' : esc['state']
+            }
+        }
+        wrapped_msg = {
+            'host' : self.apps[app_idx].address,
+            'port' : self.apps[app_idx].port,
+            'value' : msg
+        }
+        self.listener.sendMessage(wrapped_msg)
+        if esc['state'] == 'FINNISHED':
+            self.logs.info('Remove executor %d because it is %s state' % (esc['exec_id'], esc['state']))
+            if self.apps[app_idx].state != 'FINISHED':
+                self.apps[app_idx].exec_list.remove(esc['exec_id'])
+            self.executors.remove(self.executors[exec_idx])
+        # self.schedule()
+        # work to be done
+
     def process(self, msg):
         if msg['type'] == 'check_worker_timeout':
             self.check_worker_timeout()
@@ -151,7 +209,7 @@ class MasterDaemon:
         elif msg['type'] == 'reg_app':
             self.reg_app(msg['value'])
         elif msg['type'] == 'exec_stage_changed':
-            pass
+            self.exec_stage_changed_ack(msg['value'])
         elif msg['type'] == 'rm_app':
             pass
         elif msg['type'] == 'kill_exec':
@@ -209,6 +267,8 @@ class MasterDaemon:
         # worker_ad = []
         
         # drivers = []
+        self.drivers = []
+        self.executors = []
         # driver_completed = []
         # driver_wl = []
         # recording structure
