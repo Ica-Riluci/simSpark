@@ -201,6 +201,32 @@ class MasterDaemon:
         # self.schedule()
         # work to be done
 
+    def rm_app(self, app):
+        app_idx = self.search_app_by_id(app['id'])
+        if app_idx == -1:
+            self.logs.error('Application %d does not exist.' % (app['id']))
+            return
+        else:
+            executors_list = self.apps[app_idx].exec_list
+            for exec_id in executors_list:
+                exec_idx = self.search_exec_by_id(exec_id)
+                if exec_idx == -1:
+                    self.logs.error('Executor %d does not exist.' % (exec_id))
+                else:
+                    msg = {
+                        'type' : 'kill_executor',
+                        'value' : exec_id
+                    }
+                    warpped_msg = {
+                        'host' : self.executors[exec_idx].address,
+                        'port' : self.executors[exec_idx].port,
+                        'value' : msg
+                    }
+                    self.listener.sendMessage(warpped_msg)
+                    self.executors.remove(self.executors[exec_idx])
+                # self.schedule()
+            self.apps.remove(self.apps[app_idx])
+
     def process(self, msg):
         if msg['type'] == 'check_worker_timeout':
             self.check_worker_timeout()
@@ -211,7 +237,7 @@ class MasterDaemon:
         elif msg['type'] == 'exec_stage_changed':
             self.exec_stage_changed_ack(msg['value'])
         elif msg['type'] == 'rm_app':
-            pass
+            self.rm_app(msg['value'])
         elif msg['type'] == 'kill_exec':
             pass
         elif msg['type'] == 'driver_state_changed':
