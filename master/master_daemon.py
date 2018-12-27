@@ -31,6 +31,14 @@ class WorkerUnit(SparkUnit):
         self.used_cores = cores
         self.all_ram = ram
 
+class DriverUnit(SparkUnit):
+    driver_count = 0
+    def __init__(self, add, po):
+        DriverUnit.driver_count += 1
+        super(DriverUnit, self).__init__(add, po)
+        self.driver_id = DriverUnit.driver_count
+        self.state = 'IDLE'
+
 class ExecutorUnit(SparkUnit):
     executor_count = 0
     def __init__(self, add, po):
@@ -226,6 +234,24 @@ class MasterDaemon:
                     self.executors.remove(self.executors[exec_idx])
                 # self.schedule()
             self.apps.remove(self.apps[app_idx])
+    
+    def search_driver_by_id(self, id):
+        for i in range(0, len(self.drivers)):
+            if self.drivers[i].driver_id == id:
+                return i
+        return -1
+
+    def driver_state_changed_ack(self, driver):
+        driver_idx = self.search_driver_by_id(driver['id'])
+        if driver_idx == -1:
+            self.logs.error('Driver %d not found.' % (driver['id']))
+            return
+        else:
+            if self.drivers[driver_idx] in ['ERROR', 'FINISHED', 'KILLED', 'FAILED']:
+                self.drivers.remove(self.drivers[driver_idx])
+                # self.schedule
+            else:
+                self.logs.error('Unexpected update for driver %d.' % (driver['id']))
 
     def process(self, msg):
         if msg['type'] == 'check_worker_timeout':
@@ -238,10 +264,8 @@ class MasterDaemon:
             self.exec_stage_changed_ack(msg['value'])
         elif msg['type'] == 'rm_app':
             self.rm_app(msg['value'])
-        elif msg['type'] == 'kill_exec':
-            pass
         elif msg['type'] == 'driver_state_changed':
-            pass
+            self.driver_state_changed_ack(msg['value'])
         elif msg['type'] == 'worker_hb':
             pass
         elif msg['type'] == 'master_change_ack':
