@@ -24,11 +24,13 @@ class SparkUnit:
 
 class WorkerUnit(SparkUnit):
     worker_count = 0
+    # state_list = ['SLEEP', 'ALIVE']
     def __init__(self, add, po, cores, ram):
         WorkerUnit.worker_count += 1
         super(WorkerUnit, self).__init__(add, po)
         self.worker_id = WorkerUnit.worker_count
         self.used_cores = cores
+        self.state = 'SLEEP'
         self.all_ram = ram
 
 class DriverUnit(SparkUnit):
@@ -56,7 +58,7 @@ class ApplicationUnit(SparkUnit):
         self.app_name = app['name']
         self.app_id = ApplicationUnit.app_count
         self.driver_id = app['driver_id']
-        self.state = 'SLEEP'
+        self.state = 'WAITING'
         self.exec_list = []
 
 def load_config(logs):
@@ -253,6 +255,40 @@ class MasterDaemon:
             else:
                 self.logs.error('Unexpected update for driver %d.' % (driver['id']))
 
+    def search_worker_by_id(self, id):
+        for i in range(0, len(self.workers)):
+            if self.workers[i].worker_id == id:
+                return i
+        return -1
+
+    def worker_hb_ack(self, hb):
+        worker_idx = self.search_worker_by_id(hb['id'])
+        if worker_idx == -1:
+            msg = {
+                'type' : 'reconnect_worker',
+                'value' : ''
+            }
+            wrapped_msg = {
+                'host' : hb['host'],
+                'port' : hb['port'],
+                'value' : msg
+            }
+            self.listener.sendMessage(wrapped_msg)
+        else:
+            self.workers[worker_idx].lasthb = hb['timetag']
+    
+    def reregister_app(self, app):
+        app_idx = self.search_app_by_id(app['id'])
+        if app_idx == -1:
+            self.logs.error('Applicaion %d does not exist.' % (app['id']))
+            return
+        else:
+            self.apps[app_idx].state = 'WAITING'
+            self.logs.info('Application %d has been reregistered.' % (app['id']))
+
+    def worker_schedule_state_resp_ack(self, info):
+        pass            
+
     def process(self, msg):
         if msg['type'] == 'check_worker_timeout':
             self.check_worker_timeout()
@@ -267,9 +303,9 @@ class MasterDaemon:
         elif msg['type'] == 'driver_state_changed':
             self.driver_state_changed_ack(msg['value'])
         elif msg['type'] == 'worker_hb':
-            pass
+            self.worker_hb_ack(msg['value'])
         elif msg['type'] == 'master_change_ack':
-            pass
+            self.reregister_app(msg['value'])
         elif msg['type'] == 'worker_schedule_state_resp':
             pass
         elif msg['type'] == 'worker_latest_state':
@@ -294,7 +330,7 @@ class MasterDaemon:
         self.logs = logging.getLogger('simSparkLog')
         self.logs.setLevel(logging.DEBUG)
         fh = logging.handlers.RotatingFileHandler(
-            '/tmp/simSpark.log',maxBytes=10000000,backupCount=5)
+            '/tmp/simSpark_master.log',maxBytes=10000000,backupCount=5)
         fh.setLevel(logging.DEBUG)
         formatter = logging.Formatter(u'%(asctime)s [%(levelname)s] %(message)s')
         fh.setFormatter(formatter)

@@ -1,0 +1,48 @@
+from datetime import datetime
+
+class SparkUnit:
+    def __init__(self, address, port):
+        self.host = address
+        self.port = port
+
+class ApplicationUnit(SparkUnit):
+    app_count = 0
+    def __init__(self, address, port, name, did, exec_req):
+        ApplicationUnit.app_count += 1
+        super(ApplicationUnit, self).__init__(address, port)
+        self.app_name = name
+        self.driver_id = did
+        self.executors_req = exec_req
+        self.executor_list = []
+        self.state = 'WAIT'
+        self.app_id = ApplicationUnit.app_count
+
+class DriverUnit(SparkUnit):
+    driver_count = 0
+    def __init__(self, address, port, name):
+        DriverUnit.driver_count += 1
+        super(DriverUnit, self).__init__(address, port)
+        self.driver_id = DriverUnit.driver_count
+    
+    def set_app_id(self, id):
+        self.app_id = id
+        
+class ExecutorUnit(SparkUnit):
+    executor_count = 0
+    def __init__(self, address, port, wid, aid):
+        ExecutorUnit.executor_count += 1
+        super(ExecutorUnit, self).__init__(address, port)
+        self.executor_id = ExecutorUnit.executor_count
+        self.worker_id = wid
+        self.app_id = aid
+        self.state = 'WAIT'
+
+class WorkerUnit(SparkUnit):
+    worker_count = 0
+    def __init__(self, address, port):
+        WorkerUnit.worker_count += 1
+        super(WorkerUnit, self).__init__(address, port)
+        self.worker_id = WorkerUnit.worker_count
+        self.alive = True
+        self.last_heartbeat = datetime.now()
+        self.executor_list = []
