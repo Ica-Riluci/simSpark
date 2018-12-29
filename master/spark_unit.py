@@ -23,6 +23,7 @@ class DriverUnit(SparkUnit):
         DriverUnit.driver_count += 1
         super(DriverUnit, self).__init__(address, port)
         self.driver_id = DriverUnit.driver_count
+        self.app_id = None
     
     def set_app_id(self, id):
         self.app_id = id
