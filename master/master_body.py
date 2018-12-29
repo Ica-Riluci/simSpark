@@ -79,9 +79,22 @@ class Application:
         }
         return wrapped
 
+    # reaction to message
+    def check_workers_heartbeat(self):
+        for worker in self.workers:
+            if worker.alive:
+                if worker.hearbeat_expired(self.config['worker_timeout']):
+                    self.logs.warning('Worker %d is out of contact.' % (worker.id))
+                    worker.alive = False
+            else:
+                if worker.dead(self.config['worker_timeout'], self.config['reap_iteration']):
+                    self.logs.warning('Worker %d will be buried for out of contact after several iterations.' % (worker.id))
+                    self.workers.remove(worker)
+
     # message dispensor
     def dispensor(self, msg):
-        pass
+        if msg['type'] == 'check_worker_TO':
+            self.check_workers_heartbeat()
 
     # main body
     def run(self):

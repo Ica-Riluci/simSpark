@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 
 class SparkUnit:
     def __init__(self, address, port):
@@ -46,3 +46,9 @@ class WorkerUnit(SparkUnit):
         self.alive = True
         self.last_heartbeat = datetime.now()
         self.executor_list = []
+
+    def heartbeat_expired(self, lim):
+        return self.last_heartbeat + timedelta(seconds=lim) < datetime.now()
+
+    def dead(self, lim, it):
+        return self.last_heartbeat + timedelta(seconds=(lim * it)) < datetime.now()
