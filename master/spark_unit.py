@@ -25,7 +25,7 @@ class DriverUnit(SparkUnit):
         self.driver_id = DriverUnit.driver_count
         self.app_id = None
     
-    def set_app_id(self, id):
+    def set_app_id(self, id=None):
         self.app_id = id
         
 class ExecutorUnit(SparkUnit):

@@ -92,6 +92,52 @@ class Application:
             if d.driver_id == id:
                 return self.drivers.index(d)
         return None
+    
+    def search_application_by_id(self, id):
+        for a in self.apps:
+            if a.app_id == id:
+                return self.apps.index(a)
+        return None
+
+    def search_executor_by_id(self, id):
+        for e in self.executors:
+            if e.executor_id == id:
+                return self.executors.index(e)
+        return None
+
+    def search_worker_by_id(self, id):
+        for w in self.workers:
+            if w.worker_id == id:
+                return self.workers.index(w)
+        return None
+
+    def kill_executors(self, eliminate_list):
+        for e in eliminate_list:
+            e_idx = self.search_executor_by_id(e)
+            if e_idx:
+                worker_idx = self.search_worker_by_id(self.executors[e_idx].worker_id)
+                app_idx = self.search_application_by_id(self.executors[e_idx].app_id)
+                if worker_idx:
+                    if e in self.workers[worker_idx].executor_list:
+                        if self.workers[worker_idx].alive:
+                            self.logs.warning('The worker %d supervising the executor %d is still alive.' % (self.executors[e_idx].worker_id, e))
+                        self.workers[worker_idx].executor_list.remove(e)
+                    else:
+                        self.logs.warning('The worker %d does not supervise executor %d.' % (self.executors[e_idx].worker_id, e))
+                else:
+                    self.logs.warning('The worker %d does not exist.' % (self.executors[e_idx].worker_id))
+                if app_idx:
+                    if e in self.apps[app_idx].executor_list:
+                        if self.apps[app_idx].status != 'ELIMINATED':
+                            self.logs.warning('The application %d using the executor %d is still alive.' % (self.executors[e_idx].app_id, e))
+                        self.apps[app_idx].executor_list.remove(e)
+                    else:
+                        self.logs.warning('The application %d does not use executor %d.' % (self.executors[e_idx].app_id, e))
+                else:
+                    self.logs.warning('The application %d does not exist.' % (self.executors[e_idx].app_id))
+                self.executors.remove(self.executors[e_idx])
+            else:
+                self.logs.warning('The executor %d does not exist.' % (e))
 
     # reaction to message
     def check_workers_heartbeat(self):
@@ -103,6 +149,7 @@ class Application:
             else:
                 if worker.dead(self.config['worker_timeout'], self.config['reap_iteration']):
                     self.logs.warning('Worker %d will be buried for out of contact after several iterations.' % (worker.id))
+                    self.kill_executors(worker.executor_list)
                     self.workers.remove(worker)
 
     def register_application(self, app):
@@ -119,6 +166,25 @@ class Application:
         else:
             self.logs.critical('Driver %d does not exist.' % (app['did']))
 
+    def kill_application(self, app):
+        app_idx = self.search_application_by_id(app['id'])
+        if app_idx:
+            self.apps[app_idx].status = 'ELIMINATED'
+            if len(self.apps[app_idx].executor_list) > 0:
+                self.logs.warning('There are executors obtained by application %d.' % (app['id']))
+                self.kill_executors(self.apps[app_idx].executor_list)
+            driver_idx = self.search_driver_by_id(app['driver_id'])
+            if driver_idx:
+                if self.drivers[driver_idx].app_id != app['id']:
+                    self.logs.warning('Driver information not matched.')
+                else:
+                    self.drivers[driver_idx].set_app_id()
+            else:
+                self.logs.warning('None of the drivers is binded with application %d.' % (app['id']))
+            self.apps.remove(self.apps[app_idx])
+        else:
+            self.logs.warning('Application %d does not exist.' % (app['id']))
+
     # message dispensor
     def dispensor(self, msg):
         if msg['type'] == 'check_worker_TO':
@@ -126,6 +192,8 @@ class Application:
         # msg from application
         if msg['type'] == 'register_app':
             self.register_application(msg['value'])
+        if msg['type'] == 'kill_app':
+            self.kill_application(msg['value'])
 
     # main body
     def run(self):
