@@ -53,3 +53,6 @@ class WorkerUnit(SparkUnit):
 
     def dead(self, lim, it):
         return self.last_heartbeat + timedelta(seconds=(lim * it)) < datetime.now()
+
+    def awake(self):
+        self.alive = True

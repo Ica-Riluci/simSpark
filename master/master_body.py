@@ -73,6 +73,66 @@ class Application:
         }
         self.listener.sendMessage(self.wrap_msg(app.host, app.port, 'resource_update', value))
 
+    def feedback_worker(self, worker):
+        value = worker.worker_id
+        self.listener.sendMessage(self.wrap_msg(worker.host, worker.port, 'register_worker_success', value))
+
+    def awake_ghost_worker(self, ghost_heartbeat):
+        self.listener.sendMessage(self.wrap_msg(
+            ghost_heartbeat['host'],
+            ghost_heartbeat['port'],
+            'register_worker',
+            None
+        ))
+
+    def feedback_executor(self, executor, oid):
+        value = {
+            'original' : oid,
+            'assigned' : executor.executor_id
+        }
+        self.listener.sendMessage(self.wrap_msg(
+            executor.host,
+            executor.port,
+            'register_executor_success',
+            value
+        ))
+
+    def inform_application_ready(self, app):
+        value = []
+        for e in app.executor_list:
+            e_idx = self.search_executor_by_id(e)
+            value.append({
+                'executor_id' : e,
+                'host' : self.executors[e_idx].host,
+                'port' : self.executors[e_idx].port
+            })
+        self.listener.sendMessage(self.wrap_msg(
+            app.host,
+            app.port,
+            'resource_ready',
+            value
+        ))
+
+    def feedback_ghost_executor(self, host, port, eid):
+        self.listener.sendMessage(self.wrap_msg(
+            host,
+            port,
+            'ghost_executor',
+            eid
+        ))
+    
+    def feedback_executor_elimination(self, exec, e_idx):
+        value = {
+            'eid' : exec['eid'],
+            'success' : not not e_idx
+        }
+        self.listener.sendMessage(self.wrap_msg(
+            exec['host'],
+            exec['port'],
+            'elimination_feedback',
+            value
+        ))
+
     # wrap the message
     def wrap_msg(self, address, port, type, value):
         raw = {
@@ -111,6 +171,12 @@ class Application:
                 return self.workers.index(w)
         return None
 
+    def search_worker_by_address(self, address):
+        for w in self.workers:
+            if w.host == address:
+                return self.workers.index(w)
+        return None
+
     def kill_executors(self, eliminate_list):
         for e in eliminate_list:
             e_idx = self.search_executor_by_id(e)
@@ -138,6 +204,32 @@ class Application:
                 self.executors.remove(self.executors[e_idx])
             else:
                 self.logs.warning('The executor %d does not exist.' % (e))
+
+    def check_application_ready(self, aid):
+        app_idx = self.search_application_by_id(aid)
+        if app_idx:
+            if self.apps[app_idx].status == 'WAIT':
+                if len(self.apps[app_idx].executor_list) >= self.apps[app_idx].executors_req:
+                    self.inform_application_ready(self.apps[app_idx])
+        else:
+            self.logs.error('Application %d does not exist.' % (aid))
+
+    def register_executor(self, address, port, wid, eid, aid):
+        worker_idx = self.search_worker_by_id(wid)
+        app_idx = self.search_application_by_id(aid)
+        if worker_idx:
+            if app_idx:
+                self.logs.info('New executor for application %d on worker %d is registered' % (aid, wid))
+                new_executor = ExecutorUnit(address, port, wid, aid)
+                self.workers[worker_idx].executor_list.append(new_executor)
+                self.apps[app_idx].executor_list.append(new_executor)
+                self.feedback_executor(new_executor, eid)
+                self.check_application_ready(aid)
+            else:
+                self.logs.error('Application %d does not exist.' % (aid))
+        else:
+            self.logs.error('Worker %d does not exists.' % (wid))
+
 
     # reaction to message
     def check_workers_heartbeat(self):
@@ -185,15 +277,70 @@ class Application:
         else:
             self.logs.warning('Application %d does not exist.' % (app['id']))
 
+    def worker_heartbeat_ack(self, heartbeat):
+        worker_idx = self.search_worker_by_id(heartbeat['id'])
+        if worker_idx:
+            if self.workers[worker_idx].host == heartbeat['host']:
+                if not self.workers[worker_idx].alive:
+                    self.logs.info('Worker %d is awaken.' % (heartbeat['id']))
+                    self.workers[worker_idx].awake()
+                self.workers[worker_idx].update_heartbeat(heartbeat['time'])
+            else:
+                self.logs.error('Worker %d information does not match with the latest heartbeat.' % (heartbeat['id']))
+        else:
+            self.logs.warning('Ghost worker {%s} revives.' % (heartbeat['host']))
+            self.awake_ghost_worker(heartbeat)            
+
+    def register_worker(self, worker):
+        worker_idx = self.search_worker_by_address(worker['host'])
+        if worker_idx:
+            self.logs.critical('Worker {%s} already exists.' % worker['host'])
+            return
+        else:
+            new_worker = WorkerUnit(worker['host'], worker['port'])
+            self.logs.info('Worker {%s} registers as worker %d.' % (worker['host'], new_worker.worker_id))
+            self.workers.append(new_worker)
+            self.feedback_worker(new_worker)
+
+    def update_executors_of_worker(self, worker):
+        worker_idx = self.search_worker_by_id(worker['id'])
+        if worker_idx:
+            for exec in worker['list']:
+                if exec['id'] < 0:
+                    self.register_executor(worker['host'], worker['port'], worker['id'], exec['id'], exec['app_id'])
+                else:
+                    e_idx = self.search_executor_by_id(exec['id'])
+                    if e_idx:
+                        self.executors[e_idx].status = exec['status']
+                    else:
+                        self.logs.error('Executor %d does not exist.' % (exec['id']))
+                        self.feedback_ghost_executor(worker['host'], worker['port'], exec['id'])
+        else:
+            self.logs.error('Worker %d does not exists.' % (worker['id']))
+
+    def eliminate_executor(self, exec):
+        self.kill_executors([exec['eid']])
+        e_idx = self.search_executor_by_id(exec['eid'])
+        self.feedback_executor_elimination(exec, e_idx)
+
     # message dispensor
     def dispensor(self, msg):
         if msg['type'] == 'check_worker_TO':
             self.check_workers_heartbeat()
         # msg from application
-        if msg['type'] == 'register_app':
+        elif msg['type'] == 'register_app':
             self.register_application(msg['value'])
-        if msg['type'] == 'kill_app':
+        elif msg['type'] == 'kill_app':
             self.kill_application(msg['value'])
+        # msg from worker
+        elif msg['type'] == 'worker_heartbeat':
+            self.worker_heartbeat_ack(msg['value'])
+        elif msg['type'] == 'register_worker':
+            self.register_worker(msg['value'])
+        elif msg['type'] == 'update_executors':
+            self.update_executors_of_worker(msg['value'])
+        elif msg['type'] == 'kill_executor':
+            self.eliminate_executor(msg['value'])
 
     # main body
     def run(self):
