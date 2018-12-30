@@ -19,7 +19,7 @@ class ApplicationUnit(SparkUnit):
 
 class DriverUnit(SparkUnit):
     driver_count = 0
-    def __init__(self, address, port, name):
+    def __init__(self, address, port):
         DriverUnit.driver_count += 1
         super(DriverUnit, self).__init__(address, port)
         self.driver_id = DriverUnit.driver_count

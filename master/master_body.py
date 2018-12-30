@@ -133,6 +133,43 @@ class Application:
             value
         ))
 
+    def inform_no_resource(self, driver):
+        self.listener.sendMessage(self.wrap_msg(
+            driver.host,
+            driver.port,
+            'no_resource',
+            None
+        ))
+
+    def request_resource(self, wid, num, aid):
+        w_idx = self.search_worker_by_id(wid)
+        value = {
+            'number' : num,
+            'app_id' : aid
+        }
+        self.listener.sendMessage(self.wrap_msg(
+            self.workers[w_idx].host,
+            self.workers[w_idx].port,
+            'request_resource',
+            value
+        ))
+
+    def inform_wait_allocation(self, driver):
+        self.listener.sendMessage(self.wrap_msg(
+            driver.host,
+            driver.port,
+            'wait_allocation',
+            None
+        ))
+    
+    def inform_app_still_running(self, driver):
+        self.listener.sendMessage(self.wrap_msg(
+            driver.host,
+            driver.port,
+            'app_still_running',
+            None
+        ))
+
     # wrap the message
     def wrap_msg(self, address, port, type, value):
         raw = {
@@ -323,6 +360,105 @@ class Application:
         e_idx = self.search_executor_by_id(exec['eid'])
         self.feedback_executor_elimination(exec, e_idx)
 
+    def register_driver(self, driver):
+        new_driver = DriverUnit(driver['host'], driver['port'])
+        self.drivers.append(new_driver)
+
+    def allocate_resource(self, req):
+        d_idx = self.search_driver_by_id(req['driver_id'])
+        if not d_idx:
+            self.logs.error('Unknown driver requests resource.')
+            return
+        if not self.drivers[d_idx].app_id:
+            self.logs.error('Driver %d which no applicaiton is binded to requests resource.' % req['driver_id'])
+            return
+        if not req['number'] > 0:
+            self.logs.warning('Empty request from driver %d.' % (req['driver_id']))
+            return
+        asstable = {}
+        class WorkerHeap():
+            def __init__(self):
+                self.heap = [{}]
+            
+            def pop(self, i):
+                if i == 1:
+                    return
+                if self.heap[i]['weight'] < self.heap[i // 2]['weight']:
+                    tmp = self.heap[i // 2]
+                    self.heap[i // 2] = self.heap[i]
+                    self.heap[i] = tmp
+                    self.pop(i // 2)
+
+            def sink(self, i):
+                if i * 2 >= len(self.heap):
+                    return
+                if self.heap[i]['weight'] > self.heap[i * 2]['weight']:
+                    sink_left = True
+                    if i * 2 + 1 < len(self.heap):
+                        if self.heap[i * 2]['weight'] > self.heap[i * 2 + 1]['weight']:
+                            sink_left = False
+                            tmp = self.heap[i]
+                            self.heap[i] = self.heap[i * 2 + 1]
+                            self.heap[i * 2 + 1] = tmp
+                            self.sink(i * 2 + 1)
+                    if sink_left:
+                        tmp = self.heap[i]
+                        self.heap[i] = self.heap[i * 2]
+                        self.heap[i * 2] = tmp
+                        self.sink(i * 2)
+                else:
+                    if i * 2 + 1 < len(self.heap):
+                        if self.heap[i * 2 + 1]['weight'] < self.heap[i]['weight']:
+                            tmp = self.heap[i]
+                            self.heap[i] = self.heap[i * 2 + 1]
+                            self.heap[i * 2 + 1] = tmp
+                            self.sink(i * 2 + 1)
+
+            def insert(self, id, payload):
+                node = {
+                    'id' : str(id),
+                    'weight' : payload
+                }
+                self.heap.append(node)
+                self.pop(len(self.heap) - 1)
+
+            def add_payload(self):
+                if len(self.heap) < 2:
+                    return
+                self.heap[1]['weight'] + 1
+                self.sink(1)
+        
+        payload_heap = WorkerHeap()
+
+        for w in self.workers:
+            asstable[str(w.worker_id)] = 0
+            payload_heap.insert(
+                w.worker_id,
+                len(w.executor_list)
+            )
+        if len(payload_heap.heap) < 2:
+            self.logs.error('No resource can be allocated.')
+            self.inform_no_resource(self.drivers[d_idx])
+            return
+        for i in range(0, req['number']):
+            asstable[payload_heap.heap[1]['id']] += 1
+            payload_heap.add_payload()
+        for k in asstable.keys():
+            self.request_resource(int(k), asstable[k], self.drivers[d_idx].app_id)
+        self.inform_wait_allocation(self.drivers[d_idx])
+
+    def kill_driver(self, did):
+        d_idx = self.search_driver_by_id(did)
+        if d_idx:
+            if self.drivers[d_idx].app_id:
+                self.logs.error('Application %d of driver %d is still running.' % (self.drivers[d_idx].app_id, did))
+                self.inform_app_still_running(self.drivers[d_idx])
+                return
+            self.logs.error('Driver %d is killed.' % (did))
+            self.drivers.remove(self.drivers[d_idx])
+        else:
+            self.logs.error('Driver %d does not exist.' % (did))
+        
     # message dispensor
     def dispensor(self, msg):
         if msg['type'] == 'check_worker_TO':
@@ -341,6 +477,13 @@ class Application:
             self.update_executors_of_worker(msg['value'])
         elif msg['type'] == 'kill_executor':
             self.eliminate_executor(msg['value'])
+        # msg from driver
+        elif msg['type'] == 'register_driver':
+            self.register_driver(msg['value'])
+        elif msg['type'] == 'request_resource':
+            self.allocate_resource(msg['value'])
+        elif msg['type'] == 'kill_driver':
+            self.kill_driver(msg['value'])
 
     # main body
     def run(self):
