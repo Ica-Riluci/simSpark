@@ -1,0 +1,225 @@
+import logging
+import logging.handlers
+import threading
+# from daemon import runner
+from datetime import timedelta, datetime
+import sys
+
+
+sys.path.append('publib')
+
+from publib.SparkConn import *
+# import executor
+
+# without changed,need change after use
+def load_config(logs):
+    config = {
+        'master_port' : 7077,
+        'webui_port' : 8080,
+        'worker_timeout' : 60000,
+        'spread_out' : True,
+        'default_core' : -1,
+        'reaper_iteration' : 15,
+        'executor_max_retries' : 10
+    }
+    try:
+        with open('master_config.json', 'r') as jsoninput:
+            inp = json.load(jsoninput)
+        for k in config.keys():
+            if k in inp.keys():
+                config[k] = inp[k]
+    except IOError:
+        logs.warning('Failed to read configuration. Use default instead.')
+    return config
+
+class workerBody:
+
+    def __init__(self):
+        # initialize logger
+        self.logs = logging.getLogger('simSparkLog')
+        self.logs.setLevel(logging.DEBUG)
+        fh = logging.handlers.RotatingFileHandler(
+            '/tmp/simSpark_master.log', maxBytes=10000000, backupCount=5)
+        fh.setLevel(logging.DEBUG)
+        formatter = logging.Formatter(u'%(asctime)s [%(levelname)s] %(message)s')
+        fh.setFormatter(formatter)
+        self.logs.addHandler(fh)
+
+        self.logs.info('simSpark worker has been awaken.')
+        self.config = self.load_config()
+        self.executors = []
+
+    # load configuration
+    def load_config(self):
+        self.logs.info('<worker_config.json> is about to be loaded.')
+        config = {
+            'worker_port': 7077,
+        }
+        try:
+            with open('worker_config.json', 'r') as jsoninput:
+                inp = json.load(jsoninput)
+            for k in config.keys():
+                if k in inp.keys():
+                    config[k] = inp[k]
+        except IOError:
+            self.logs.warning('Failed to read configuration. Use default instead.')
+        return config
+
+    # todo:need the worker to send a host and port
+    def reg_succ_worker(self, value):
+        self.connected = True
+        self.id = value['id']
+        self.master.host = value['host']
+        self.master.port = value['port']
+
+    def reg_succ_executor(self, value):
+        oid = value['original']
+        e = self.search_executor_by_id(oid)
+        if e:
+            self.executors[e].id = value['assigned']
+            self.executors[e].status = 'alive'
+        else:
+            self.logs.warning('Failed to read the right executor')
+        # todo begin the thread of the executor
+
+    def send_executor_status(self):
+        if self.connected:
+            if not(self.renew_exe_list) == False:
+                msg = {
+                    'id': self.id,
+                    'host': self.config['host'],
+                    'port': self.config['port'],
+                    'list': self.renew_exe_list
+                }
+                wrappedmsg = self.wrap_msg(self.master.host, self.master.port, 'update_executors', msg)
+                self.listener.sendMessage(wrappedmsg)
+                self.renew_exe_list = []
+
+    def exec_state_change(self, value):
+        # change the data itself
+        change_state = {
+            'id': value['id'],
+            'status': value['status'],
+            'app_id': value['app_id']
+        }
+        eid = value['id']
+        pos = -1
+        for e in self.renew_exe_list:
+            if e['id'] == eid:
+                pos = self.renew_exe_list.index(e)
+        if pos != -1:
+            self.renew_exe_list[pos] = change_state
+        else:
+            self.renew_exe_list.append(change_state)
+
+
+    def del_executors(self, value):
+        pass
+
+    # todo
+    def req_executor(self, value):
+        num = value['number']
+        aid = value['app_id']
+        for i in range(1, num):
+            pass
+            #ex = createExecutor()
+            #self.executors += ex
+
+    def send_heartbeat(self):
+        if self.connected:
+            msg = {
+                    'id': self.id,
+                    'host': self.config['host'],
+                    'port': self.config['port'],
+                    'time': datetime.now()
+                }
+            wrapmsg = self.wrap_msg(self.master.host, self.master.port, 'worker_heartbeat', msg)
+            self.listener.sendMessage(wrapmsg)
+        pass
+
+    def cleanCatalog(self):
+        pass
+
+    # todo
+    def reregesiter_master(self, addr, port):
+        if self.connected:
+            msg = wrap_msg()
+        else:
+            pass
+
+    # wrap the message
+    def wrap_msg(self, address, port, type, value):
+        raw = {
+            'type': type,
+            'value': value
+        }
+        wrapped = {
+            'host': address,
+            'port': port,
+            'value': raw
+        }
+        return wrapped
+
+    def search_executor_by_id(self, id):
+        for e in self.executors:
+            if e.executor_id == id:
+                return self.executors.index(e)
+        return None
+
+    def process(self, msg):
+        if msg['type'] == 'register_worker_success':
+            self.reg_succ_worker(msg['value'])
+        elif msg['type'] == 'request_resource':
+            self.req_executor(msg['value'])
+        elif msg['type'] == 'exec_state_change':
+            self.exec_state_change(['value'])
+        elif msg['type'] == 'register_worker':
+            self.reregister()
+        elif msg['type'] == 'register_executor_success'
+            self.reg_succ_executor(msg['value'])
+
+
+    def run(self):
+        self.logs = logging.getLogger('simSparkLog')
+        self.logs.setLevel(logging.DEBUG)
+        fh = logging.handlers.RotatingFileHandler(
+            '/tmp/simSpark.log', maxBytes=10000000, backupCount=5)
+        fh.setLevel(logging.DEBUG)
+        formatter = logging.Formatter(u'%(asctime)s [%(levelname)s] %(message)s')
+        fh.setFormatter(formatter)
+        self.logs.addHandler(fh)
+
+        self.config = load_config(self.logs)
+        if self.config['default_core'] < 1 and self.config['default_core'] != -1:
+            self.logs.critical('Default core(s) assigned must be positive.')
+            return
+        # fetch configuration
+
+        self.connected = False
+        self.executors = []
+        self.master = []
+        self.id = -1
+        self.appId = -1
+        self.renew_exe_list = []
+        # self.finishedExecutors = []
+
+        # recording structure
+
+        timer = threading.Timer(2.0, self.send_check_worker_timeout)
+        timer.start()
+
+        # a timer to send the status change within a period of time
+        status_renew_timer = threading.Timer(1.0, self.send_executor_status)
+        status_renew_timer.start()
+
+        self.listener = SparkConn('localhost', self.config['worker_port'])
+
+        # onStart
+
+        while True:
+            msg = self.listener.accept()
+            self.process(json.loads(msg['value']))
+
+app = workerBody()
+app.run()
+
