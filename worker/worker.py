@@ -4,7 +4,8 @@ import threading
 # from daemon import runner
 from datetime import timedelta, datetime
 import sys
-
+import time
+import executor
 
 sys.path.append('publib')
 
@@ -14,6 +15,7 @@ from publib.SparkConn import *
 # without changed,need change after use
 def load_config(logs):
     config = {
+        'master_address': '',
         'master_port' : 7077,
         'webui_port' : 8080,
         'worker_timeout' : 60000,
@@ -72,6 +74,7 @@ class workerBody:
         self.master.host = value['host']
         self.master.port = value['port']
 
+    # todo begin the thread of the executor
     def reg_succ_executor(self, value):
         oid = value['original']
         e = self.search_executor_by_id(oid)
@@ -80,21 +83,25 @@ class workerBody:
             self.executors[e].status = 'alive'
         else:
             self.logs.warning('Failed to read the right executor')
-        # todo begin the thread of the executor
 
     def send_executor_status(self):
         if self.connected:
-            if not(self.renew_exe_list) == False:
+            renew_list = []
+            for ex in self.executors:
+                if ex.main.status != ex.status:
+                    renew_list.append(ex.main)
+                    ex.status = ex.main.status
+            if not(renew_list) == False:
                 msg = {
                     'id': self.id,
                     'host': self.config['host'],
                     'port': self.config['port'],
-                    'list': self.renew_exe_list
+                    'list': self.renew_list
                 }
-                wrappedmsg = self.wrap_msg(self.master.host, self.master.port, 'update_executors', msg)
+                wrappedmsg = self.wrap_msg(self.config.master_host, self.master.port, 'update_executors', msg)
                 self.listener.sendMessage(wrappedmsg)
-                self.renew_exe_list = []
 
+    '''
     def exec_state_change(self, value):
         # change the data itself
         change_state = {
@@ -111,19 +118,23 @@ class workerBody:
             self.renew_exe_list[pos] = change_state
         else:
             self.renew_exe_list.append(change_state)
+    '''
 
-
-    def del_executors(self, value):
-        pass
+    # todo
+    def del_executor(self, value):
+        if value['success']:
+            id = value['eid']
+            pos = self.search_executor_by_id(id)
+            del self.executors[pos]
 
     # todo
     def req_executor(self, value):
         num = value['number']
-        aid = value['app_id']
+        self.appId = value['app_id']
         for i in range(1, num):
-            pass
-            #ex = createExecutor()
-            #self.executors += ex
+            ex = executor(self.exeid)
+            self.exeid -= 1
+            self.executors.append(ex)
 
     def send_heartbeat(self):
         if self.connected:
@@ -140,12 +151,18 @@ class workerBody:
     def cleanCatalog(self):
         pass
 
+    def register_worker(self):
+        worker = {
+            'host': self.config.host,
+            'port': self.config.port
+        }
+        wrapped_msg = self.wrap_msg(self.config.master_host, self.config.master_port, 'register_worker', worker)
+        self.self.listener.sendMessage(wrapped_msg)
+
     # todo
-    def reregesiter_master(self, addr, port):
-        if self.connected:
-            msg = wrap_msg()
-        else:
-            pass
+    def reregister(self):
+        self.conected = False
+        self.register_worker()
 
     # wrap the message
     def wrap_msg(self, address, port, type, value):
@@ -171,13 +188,12 @@ class workerBody:
             self.reg_succ_worker(msg['value'])
         elif msg['type'] == 'request_resource':
             self.req_executor(msg['value'])
-        elif msg['type'] == 'exec_state_change':
-            self.exec_state_change(['value'])
         elif msg['type'] == 'register_worker':
             self.reregister()
-        elif msg['type'] == 'register_executor_success'
+        elif msg['type'] == 'register_executor_success':
             self.reg_succ_executor(msg['value'])
-
+        elif msg['type'] == 'elimination_feedback':
+            self.del_executor(msg['value'])
 
     def run(self):
         self.logs = logging.getLogger('simSparkLog')
@@ -190,23 +206,27 @@ class workerBody:
         self.logs.addHandler(fh)
 
         self.config = load_config(self.logs)
+        '''
         if self.config['default_core'] < 1 and self.config['default_core'] != -1:
             self.logs.critical('Default core(s) assigned must be positive.')
             return
+        '''
         # fetch configuration
-
+        self.exeid = -1
         self.connected = False
         self.executors = []
-        self.master = []
         self.id = -1
         self.appId = -1
-        self.renew_exe_list = []
-        # self.finishedExecutors = []
+        # self.renew_exe_list = []
+        self.maxExectuorNum = 10
 
         # recording structure
 
-        timer = threading.Timer(2.0, self.send_check_worker_timeout)
-        timer.start()
+        while self.connected == False:
+            self.register_worker()
+            time.sleep(1)
+
+        # todo set a thread pool
 
         # a timer to send the status change within a period of time
         status_renew_timer = threading.Timer(1.0, self.send_executor_status)
