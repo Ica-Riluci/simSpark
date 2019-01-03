@@ -97,9 +97,8 @@ class simRDD:
         else:
             return self.compute(part)
 
-    def _1v1dependecies(self, part):
+    def _1v1dependencies(self, part):
         parent_rdd = self.context.get_rdd_by_id(self.dependencies[0])
-        print(self.partitions.index(part))
         parent_part = parent_rdd.partitions[part.idx]
         records = parent_rdd.iter(parent_part).records
         return records
@@ -124,7 +123,12 @@ class simRDD:
         return new_rdd
     
     def filter(self, fun):
-        pass
+        new_parts = []
+        for i in range(0, len(self.partitions)):
+            new_part = simPartition(i, [], simPartition.PARENT)
+            new_parts.append(new_part)
+        new_rdd = filterRDD(self.context, [self.rdd_id], new_parts, fun)
+        return new_rdd
 
     def __str__(self):
         out = []
@@ -140,7 +144,7 @@ class mappedRDD(simRDD):
         self.func = fun
 
     def compute(self, part):
-        recs = self._1v1dependecies(part)
+        recs = self._1v1dependencies(part)
         new_recs = []
         for rec in recs:
             new_recs.append(self.func(rec))
@@ -153,7 +157,7 @@ class flatMappedRDD(simRDD):
         self.func = fun
 
     def compute(self, part):
-        recs = self._1v1dependecies(part)
+        recs = self._1v1dependencies(part)
         new_recs = []
         for rec in recs:
             tmpresult = self.func(rec)
@@ -171,4 +175,10 @@ class filterRDD(simRDD):
         self.func = fun
     
     def compute(self, part):
-        pass
+        recs = self._1v1dependencies(part)
+        new_recs = []
+        for rec in recs:
+            if self.func(rec):
+                new_recs.append(rec)
+        new_part = simPartition(part.idx, new_recs)
+        return new_part
