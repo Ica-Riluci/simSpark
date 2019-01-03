@@ -144,6 +144,7 @@ class workerBody:
             'port': self.config['worker_port']
         }
         wrapped_msg = self.wrap_msg(self.config['master_host'], self.config['master_port'], 'register_worker', worker)
+        print wrapped_msg
         self.listener.sendMessage(wrapped_msg)
         if self.connected == False:
             reg_timer = threading.Timer(5.0, self.register_worker)
@@ -187,7 +188,7 @@ class workerBody:
             self.ghost_executor(msg['value'])
 
     def run(self):
-        self.listener = SparkConn('localhost', self.config['worker_port'])
+        self.listener = SparkConn(self.config['worker_host'], self.config['worker_port'])
 
         # a timer to set initial register
         reg_timer = threading.Timer(5.0, self.register_worker)

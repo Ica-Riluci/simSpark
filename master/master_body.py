@@ -41,6 +41,7 @@ class Application:
     def load_config(self):
         self.logs.info('<master_config.json> is about to be loaded.')
         config = {
+            'master_host' : '127.0.0.1',
             'master_port' : 7077,
             'webui_port' : 8080,
             'worker_timeout' : 60000,
@@ -61,7 +62,7 @@ class Application:
     
     # signal sent
     def periodical_signal(self):
-        msg = self.wrap_msg('localhost', self.config['master_port'], 'check_worker_TO', None)
+        msg = self.wrap_msg(self.config['master_host'], self.config['master_port'], 'check_worker_TO', None)
         self.listener.sendMessage(msg)
         timer = threading.Timer(10.0, self.periodical_signal)
         timer.start()
@@ -492,7 +493,7 @@ class Application:
     # main body
     def run(self):
         # establish listener
-        self.listener = SparkConn('localhost', self.config['master_port'])
+        self.listener = SparkConn(self.config['master_host'], self.config['master_port'])
         
         # set up periodical signal
         timer = threading.Timer(10.0, self.periodical_signal)
