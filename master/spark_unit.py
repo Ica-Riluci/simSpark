@@ -1,6 +1,6 @@
 from datetime import datetime, timedelta
 
-class SparkUnit:
+class SparkUnit(object):
     def __init__(self, address, port):
         self.host = address
         self.port = port

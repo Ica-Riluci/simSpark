@@ -11,7 +11,7 @@ from datetime import datetime, timedelta
 
 # self-made library
 sys.path.append('..')
-from master.spark_unit import *
+from spark_unit import *
 from publib.SparkConn import *
 
 class Application:
@@ -63,7 +63,7 @@ class Application:
     def periodical_signal(self):
         msg = self.wrap_msg('localhost', self.config['master_port'], 'check_worker_TO', None)
         self.listener.sendMessage(msg)
-        timer = threading.Timer(2.0, self.periodical_signal)
+        timer = threading.Timer(10.0, self.periodical_signal)
         timer.start()
 
     def feedback_application(self, app):
@@ -74,7 +74,9 @@ class Application:
         self.listener.sendMessage(self.wrap_msg(app.host, app.port, 'resource_update', value))
 
     def feedback_worker(self, worker):
-        value = worker.worker_id
+        value = {
+            'id' : worker.worker_id
+        }
         self.listener.sendMessage(self.wrap_msg(worker.host, worker.port, 'register_worker_success', value))
 
     def awake_ghost_worker(self, ghost_heartbeat):
@@ -121,14 +123,14 @@ class Application:
             eid
         ))
     
-    def feedback_executor_elimination(self, exec, e_idx):
+    def feedback_executor_elimination(self, executor, e_idx):
         value = {
-            'eid' : exec['eid'],
+            'eid' : executor['eid'],
             'success' : not not e_idx
         }
         self.listener.sendMessage(self.wrap_msg(
-            exec['host'],
-            exec['port'],
+            executor['host'],
+            executor['port'],
             'elimination_feedback',
             value
         ))
@@ -173,13 +175,13 @@ class Application:
     # wrap the message
     def wrap_msg(self, address, port, type, value):
         raw = {
-            'type' : type,
-            'value' : value
+            'type': type,
+            'value': value
         }
         wrapped = {
-            'host' : address,
-            'port' : port,
-            'value' : raw
+            'host': address,
+            'port': port,
+            'value': json.dumps(raw)
         }
         return wrapped
 
@@ -272,7 +274,7 @@ class Application:
     def check_workers_heartbeat(self):
         for worker in self.workers:
             if worker.alive:
-                if worker.hearbeat_expired(self.config['worker_timeout']):
+                if worker.heartbeat_expired(self.config['worker_timeout']):
                     self.logs.warning('Worker %d is out of contact.' % (worker.id))
                     worker.alive = False
             else:
@@ -342,23 +344,25 @@ class Application:
     def update_executors_of_worker(self, worker):
         worker_idx = self.search_worker_by_id(worker['id'])
         if worker_idx:
-            for exec in worker['list']:
-                if exec['id'] < 0:
-                    self.register_executor(worker['host'], worker['port'], worker['id'], exec['id'], exec['app_id'])
+            for executor in worker['list']:
+                if executor['id'] < 0:
+                    self.register_executor(worker['host'], worker['port'], worker['id'], executor['id'], executor['app_id'])
                 else:
-                    e_idx = self.search_executor_by_id(exec['id'])
+                    e_idx = self.search_executor_by_id(executor['id'])
                     if e_idx:
-                        self.executors[e_idx].status = exec['status']
+                        self.executors[e_idx].status = executor['status']
                     else:
-                        self.logs.error('Executor %d does not exist.' % (exec['id']))
-                        self.feedback_ghost_executor(worker['host'], worker['port'], exec['id'])
+                        self.logs.error('Executor %d does not exist.' % (executor['id']))
+                        self.feedback_ghost_executor(worker['host'], worker['port'], executor['id'])
         else:
             self.logs.error('Worker %d does not exists.' % (worker['id']))
 
-    def eliminate_executor(self, exec):
-        self.kill_executors([exec['eid']])
-        e_idx = self.search_executor_by_id(exec['eid'])
-        self.feedback_executor_elimination(exec, e_idx)
+    def eliminate_executor(self, executor):
+        execs = executor['eid']
+        self.kill_executors(execs)
+        for e in execs:
+            e_idx = self.search_executor_by_id(e)
+            self.feedback_executor_elimination(executor, e_idx)
 
     def register_driver(self, driver):
         new_driver = DriverUnit(driver['host'], driver['port'])
@@ -491,13 +495,17 @@ class Application:
         self.listener = SparkConn('localhost', self.config['master_port'])
         
         # set up periodical signal
-        timer = threading.Timer(2.0, self.periodical_signal)
+        timer = threading.Timer(10.0, self.periodical_signal)
         timer.start()
+        i1 = 0
 
         # main loop
         while True:
             msg = self.listener.accept()
-            self.dispensor(json.loads(msg)['value'])
+            i1 += 1
+            print str(msg) + str(i1)
+            print str(msg['value'])
+            self.dispensor(json.loads(msg['value']))
 
 
 # instantiation
