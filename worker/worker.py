@@ -10,7 +10,6 @@ import executor
 sys.path.append('publib')
 
 from publib.SparkConn import *
-# import executor
 
 # without changed,need change after use
 def load_config(logs):
@@ -71,8 +70,6 @@ class workerBody:
     def reg_succ_worker(self, value):
         self.connected = True
         self.id = value['id']
-        self.master.host = value['host']
-        self.master.port = value['port']
 
     # todo begin the thread of the executor
     def reg_succ_executor(self, value):
@@ -98,9 +95,20 @@ class workerBody:
                     'port': self.config['port'],
                     'list': self.renew_list
                 }
-                wrappedmsg = self.wrap_msg(self.config.master_host, self.master.port, 'update_executors', msg)
+                wrappedmsg = self.wrap_msg(self.config.master_host, self.config.master_port, 'update_executors', msg)
                 self.listener.sendMessage(wrappedmsg)
-
+            # check if there is an executor is completed
+            eid_list = []
+            for nex in renew_list:
+                if nex.main.status == 'Completed':
+                    eid_list.append(nex.eid)
+            delmsg = {
+                    'host': self.config['host'],
+                    'port': self.config['port'],
+                    'eid': self.eid_list
+                }
+            wrapmsg = self.wrap_msg(self.config.master_host, self.config.master_port, 'kill_executor', delmsg)
+            self.listener.sendMessage(wrapmsg)
     '''
     def exec_state_change(self, value):
         # change the data itself
@@ -135,6 +143,7 @@ class workerBody:
             ex = executor(self.exeid)
             self.exeid -= 1
             self.executors.append(ex)
+            self
 
     def send_heartbeat(self):
         if self.connected:
@@ -194,6 +203,8 @@ class workerBody:
             self.reg_succ_executor(msg['value'])
         elif msg['type'] == 'elimination_feedback':
             self.del_executor(msg['value'])
+        elif msg['type'] == 'ghost_executor':
+            self.ghost_executor(msg['value'])
 
     def run(self):
         self.logs = logging.getLogger('simSparkLog')
@@ -224,7 +235,7 @@ class workerBody:
 
         while self.connected == False:
             self.register_worker()
-            time.sleep(1)
+            time.sleep(3)
 
         # todo set a thread pool
 
