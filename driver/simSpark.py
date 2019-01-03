@@ -49,25 +49,33 @@ class simContext:
             l = len(arr) // fineness * i
             r = len(arr) // fineness * (i + 1)
             data = arr[l:r]
-            new_par = simPartition(data)
+            new_par = simPartition(i, data)
             part.append(new_par)
         new_rdd = simRDD(self, [], part)
+        self.rdds.append(new_rdd)
         return new_rdd        
 
 class simPartition:
     MEMORY = 0
     FILE = 1
     PARENT = 2
-    def __init__(self, source=None, method=MEMORY):
+    def __init__(self, idx, source=None, method=MEMORY):
         self.source = source
         self.method = method
-    
-    def get_data(self):
-        if self.method == simRDD.MEMORY:
+        self.idx = idx
+
+    @property
+    def records(self):
+        if self.method == simPartition.MEMORY:
             return self.source
         else:
             pass
             # Not implemented
+    
+    def __str__(self):
+        return self.records.__str__()
+
+    __repr__ = __str__
 
 class simRDD:
     rdd_count = 0
@@ -80,7 +88,6 @@ class simRDD:
         self.rdd_id = simRDD.rdd_count
         self.partitions = part
         self.storage_lvl = s_lvl
-        self.context.rdds.append(self)
 
     def iter(self, part):
         if self.storage_lvl != simRDD.STORE_NONE:
@@ -90,89 +97,57 @@ class simRDD:
         else:
             return self.compute(part)
 
+    def _1v1dependecies(self, part):
+        parent_rdd = self.context.get_rdd_by_id(self.dependencies[0])
+        print(self.partitions.index(part))
+        parent_part = parent_rdd.partitions[part.idx]
+        records = parent_rdd.iter(parent_part).records
+        return records
+
     def compute(self, part):
-        pass
+        return part
 
     def map(self, fun):
-        new_part = []
+        new_parts = []
         for i in range(0, len(self.partitions)):
-            part = simPartition(None, simPartition.PARENT)
-            new_part.append(part)
-        new_rdd = mappedRDD(
-            [self.rdd_id],
-            new_part,
-            fun
-        )
-        self.context.append(new_rdd)
+            new_part = simPartition(i, [], simPartition.PARENT)
+            new_parts.append(new_part)
+        new_rdd = mappedRDD(self.context, [self.rdd_id], new_parts, fun)
         return new_rdd
 
     def flatmap(self, fun):
-        new_part = []
-        for i in range(0, len(self.partitions)):
-            part = simPartition(None, simPartition.PARENT)
-            new_part.append(part)
-        new_rdd = flatMappedRDD(
-            [self.rdd_id],
-            new_part,
-            fun
-        )
-        self.context.append(new_rdd)
-        return new_rdd
+        pass
     
     def filter(self, fun):
-        new_part = []
-        for i in range(0, len(self.partitions)):
-            part = simPartition(None, simPartition.PARENT)
-            new_part.append(part)
-        new_rdd = filterRDD(
-            [self.rdd_id],
-            new_part,
-            fun
-        )
-        self.context.append(new_rdd)
-        return new_rdd
+        pass
 
 class mappedRDD(simRDD):
-    def __init__(self, dep, part, fun, s_lvl=simRDD.STORE_NONE):
-        super(mappedRDD, self).__init__(dep, part, s_lvl)
-        self.map = fun
+    def __init__(self, ctx, dep, part, fun, s_lvl=simRDD.STORE_NONE):
+        super(mappedRDD, self).__init__(ctx, dep, part, s_lvl)
+        self.func = fun
 
     def compute(self, part):
-        if part.method == simPartition.PARENT:
-            parent_rdd = self.context.get_rdd_by_id(self.dependencies[0])
-            parent_part = parent_rdd.partitions[self.partitions.index(part)]
-            data = parent_rdd.iter(parent_part).get_data()
-            return simPartition(self.map(data))
-        else:
-            return part
+        recs = self._1v1dependecies(part)
+        new_recs = []
+        for rec in recs:
+            print(rec)
+            print(self.func(rec))
+            new_recs.append(self.func(rec))
+        new_part = simPartition(part.idx, new_recs)
+        return new_part
 
 class flatMappedRDD(simRDD):
     def __init__(self, dep, part, fun, s_lvl=simRDD.STORE_NONE):
         super(flatMappedRDD, self).__init__(dep, part, s_lvl)
-        self.map = fun
+        self.func = fun
 
     def compute(self, part):
-        if part.method == simPartition.PARENT:
-            parent_rdd = self.context.get_rdd_by_id(self.dependencies[0])
-            parent_part = parent_rdd.partitions[self.partitions.index(part)]
-            data = parent_rdd.iter(parent_part).get_data()
-            return simPartition(self.map(data))
-        else:
-            return part
+        pass
 
 class filterRDD(simRDD):
     def __init__(self, dep, part, fun, s_lvl=simRDD.STORE_NONE):
         super(filterRDD, self).__init__(dep, part, s_lvl)
-        self.map = fun
+        self.func = fun
     
     def compute(self, part):
-        if part.method == simPartition.PARENT:
-            parent_rdd = self.context.get_rdd_by_id(self.dependencies[0])
-            parent_part = parent_rdd.partitions[self.partitions.index(part)]
-            data = parent_rdd.iter(parent_part).get_data()
-            if self.map(data):
-                return data
-            else:
-                return None
-        else:
-            return part
+        pass
