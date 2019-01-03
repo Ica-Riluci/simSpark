@@ -116,10 +116,23 @@ class simRDD:
         return new_rdd
 
     def flatmap(self, fun):
-        pass
+        new_parts = []
+        for i in range(0, len(self.partitions)):
+            new_part = simPartition(i, [], simPartition.PARENT)
+            new_parts.append(new_part)
+        new_rdd = flatMappedRDD(self.context, [self.rdd_id], new_parts, fun)
+        return new_rdd
     
     def filter(self, fun):
         pass
+
+    def __str__(self):
+        out = []
+        for part in self.partitions:
+            out += self.compute(part).records
+        return out.__str__()
+    
+    __repr__ = __str__
 
 class mappedRDD(simRDD):
     def __init__(self, ctx, dep, part, fun, s_lvl=simRDD.STORE_NONE):
@@ -130,23 +143,31 @@ class mappedRDD(simRDD):
         recs = self._1v1dependecies(part)
         new_recs = []
         for rec in recs:
-            print(rec)
-            print(self.func(rec))
             new_recs.append(self.func(rec))
         new_part = simPartition(part.idx, new_recs)
         return new_part
 
 class flatMappedRDD(simRDD):
-    def __init__(self, dep, part, fun, s_lvl=simRDD.STORE_NONE):
-        super(flatMappedRDD, self).__init__(dep, part, s_lvl)
+    def __init__(self, ctx, dep, part, fun, s_lvl=simRDD.STORE_NONE):
+        super(flatMappedRDD, self).__init__(ctx, dep, part, s_lvl)
         self.func = fun
 
     def compute(self, part):
-        pass
+        recs = self._1v1dependecies(part)
+        new_recs = []
+        for rec in recs:
+            tmpresult = self.func(rec)
+            if type(tmpresult) != type([]):
+                self.context.logs.error('Fail to compute the partition %d in <flatMap> RDD %d.' % (recs.index(rec), self.rdd_id))
+                return None
+            else:
+                new_recs += self.func(rec)
+        new_part = simPartition(part.idx, new_recs)
+        return new_part
 
 class filterRDD(simRDD):
-    def __init__(self, dep, part, fun, s_lvl=simRDD.STORE_NONE):
-        super(filterRDD, self).__init__(dep, part, s_lvl)
+    def __init__(self, ctx, dep, part, fun, s_lvl=simRDD.STORE_NONE):
+        super(filterRDD, self).__init__(ctx, dep, part, s_lvl)
         self.func = fun
     
     def compute(self, part):
