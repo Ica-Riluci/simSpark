@@ -31,9 +31,9 @@ class simContext:
         self.logs.addHandler(fh)
 
         self.config = self.load_config()
-        self.register_timeout = False
+        # self.register_timeout = False
 
-        # register app and driver
+        # register driver
         value = {
             'host' : self.config['self_host'],
             'port' : port
@@ -50,6 +50,8 @@ class simContext:
             if msg['type'] == 'register_driver_success':
                 self.driver_id = msg['value']['id']
                 break
+        
+        # register app
         value = {
             'host' : self.config['self_host'],
             'port' : port,
@@ -123,6 +125,69 @@ class simContext:
         self.rdds.append(new_rdd)
         return new_rdd        
 
+class simStep:
+    def __init__(self, rdd, part_idx):
+        self.rdd = rdd
+        self.part_idx = part_idx
+        self.parent_step = []
+
+    def forward(self):
+        part = self.rdd.partitions[self.part_idx]
+        dep = self.rdd.get_dependencies_list(part)
+        ret = []
+
+        if self.rdd.is_shuffled:
+            # meet new stage request
+            for dependency in dep:
+                ret.append(dependency['rdd'].rdd_id)
+            return ret
+        else:
+            # record all rdds of new stage it depends on
+            for dependency in dep:
+                for pidx in dependency['partition']:
+                    new_step = simStep(dependency['rdd'], pidx)
+                    ret += new_step.forward()
+                    self.parent_step.append(new_step)
+            return list(set(ret))
+
+class simTask:
+    def __init__(self, step, prev):
+        self.root = step
+        self.parent_stage = prev
+
+class simStage:
+    def __init__(self, ctx, finalrdd):
+        self.context = ctx
+        self.rdd = finalrdd
+        self.tasks = []
+
+    def schedule(self):
+        tmptasklist = []
+        all_new_final = []
+        all_new_stage = []
+        
+        # record all possible parent stage
+        for part in self.rdd.partitions:
+            step = simStep(self.rdd, part.idx)
+            tmptasklist.append({
+                'step' : step,
+                'ancestor' : step.forward()
+            })
+            all_new_final += tmptasklist[len(tmptasklist) - 1]['ancestor']
+        all_new_final = list(set(all_new_final))
+        for final in all_new_final:
+            new_stage = simStage(self.context, self.context.get_rdd_by_id(final))
+            new_stage.schedule()
+            all_new_stage.append(new_stage)
+        
+        # create tasks for this stage
+        for task in tmptasklist:
+            prev = []
+            for anc in task['ancestor']:
+                prev.append(all_new_stage[all_new_final.index(anc)])
+            new_task = simTask(task['step'], prev)
+            self.tasks.append(new_task)
+
 class simPartition:
     MEMORY = 0
     FILE = 1
@@ -157,6 +222,10 @@ class simRDD:
         self.partitions = part
         self.storage_lvl = s_lvl
 
+    @property
+    def is_shuffled(self):
+        return False
+
     def iter(self, part):
         if self.storage_lvl != simRDD.STORE_NONE:
             pass
@@ -173,6 +242,9 @@ class simRDD:
 
     def compute(self, part):
         return part
+        out = []
+        for part in self.partitions:
+            out += self.compute(part).records
 
     def map(self, fun):
         new_parts = []
