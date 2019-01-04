@@ -66,6 +66,17 @@ class Application:
         timer = threading.Timer(2.0, self.periodical_signal)
         timer.start()
 
+    def register_driver_success(self, driver):
+        value = {
+            'id' : driver.driver_id
+        }
+        self.listener.sendMessage(self.wrap_msg(
+            driver.host,
+            driver.port,
+            'register_driver_success',
+            value
+        ))
+
     def feedback_application(self, app):
         value = {
             'id' : app.id,
@@ -272,7 +283,7 @@ class Application:
     def check_workers_heartbeat(self):
         for worker in self.workers:
             if worker.alive:
-                if worker.hearbeat_expired(self.config['worker_timeout']):
+                if worker.heartbeat_expired(self.config['worker_timeout']):
                     self.logs.warning('Worker %d is out of contact.' % (worker.id))
                     worker.alive = False
             else:
@@ -288,7 +299,7 @@ class Application:
             if self.drivers[driver_idx].app_id:
                 self.logs.critical('An application is already binded to driver %d.' % (app['did']))
                 return
-            new_app = ApplicationUnit(app['host'], app['port'], app['name'], app['did'], app['exec_req'])
+            new_app = ApplicationUnit(app['host'], app['port'], app['name'], app['did'])
             self.apps.append(new_app)
             self.logs.info('Application %s is binded to driver %d using id %d.' % (app['name'], app['did'], new_app.app_id))
             self.feedback_application(new_app)
@@ -363,7 +374,8 @@ class Application:
     def register_driver(self, driver):
         new_driver = DriverUnit(driver['host'], driver['port'])
         self.drivers.append(new_driver)
-
+        self.register_driver_success(new_driver)
+        
     def allocate_resource(self, req):
         d_idx = self.search_driver_by_id(req['driver_id'])
         if not d_idx:
@@ -375,6 +387,8 @@ class Application:
         if not req['number'] > 0:
             self.logs.warning('Empty request from driver %d.' % (req['driver_id']))
             return
+        a_idx = self.search_application_by_id(self.drivers[d_idx].app_id)
+        self.apps[a_idx].executors_req = req['number']
         asstable = {}
         class WorkerHeap():
             def __init__(self):

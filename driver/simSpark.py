@@ -1,25 +1,23 @@
 import sys
+import json
+import threading
+import time
 import logging
 from logging import handlers
 sys.path.append('..')
 from publib.SparkConn import *
 
 class simApp:
-    app_count = 0
     def __init__(self, name=None):
         self.app_name = name
         self.app_id = None
         self.status = 'WAIT'
         self.executor_list = []
-        simApp.app_count += 1
-        if simApp.app_count > 1:
-            self.valid = False
-        else:
-            self.valid = True
 
 class simContext:
     def __init__(self, app, port=9999):
         self.app = app
+        self.driver_id = None
         self.port = port
         self.listener = SparkConn('localhost', port)
         self.rdds = []
@@ -31,6 +29,76 @@ class simContext:
         formatter = logging.Formatter(u'%(asctime)s [%(levelname)s] %(message)s')
         fh.setFormatter(formatter)
         self.logs.addHandler(fh)
+
+        self.config = self.load_config()
+        self.register_timeout = False
+
+        # register app and driver
+        value = {
+            'host' : self.config['self_host'],
+            'port' : port
+        }
+        self.listener.sendMessage(self.wrap_msg(
+            self.config['master_host'],
+            self.config['master_port'],
+            'register_driver',
+            value
+        ))
+        while True:
+            self.logs.info('Waiting for registeration feedback')
+            msg = self.listener.accept()
+            if msg['type'] == 'register_driver_success':
+                self.driver_id = msg['value']['id']
+                break
+        value = {
+            'host' : self.config['self_host'],
+            'port' : port,
+            'did' : self.driver_id,
+            'app_name' : self.app.app_name
+        }
+        self.listener.sendMessage(self.wrap_msg(
+            self.config['master_host'],
+            self.config['master_port'],
+            'register_driver',
+            value
+        ))
+        while True:
+            self.logs.info('Wait for registeration feedback')
+            msg = self.listener.accept()
+            if msg['type'] == 'resource update':
+                self.app.app_id = msg['value']['id']
+                self.app.executor_list = msg['value']['executor_list']
+                break
+
+    def wrap_msg(self, address, port, type, value):
+        raw = {
+            'type' : type,
+            'value' : value
+        }
+        wrapped = {
+            'host' : address,
+            'port' : port,
+            'value' : raw
+        }
+        return wrapped
+
+    def load_config(self):
+        self.logs.info('<master_config.json> is about to be loaded.')
+        config = {
+            'self_host' : 'localhost',
+            'master_host' : 'localhost',
+            'master_port' : 7077,
+            'timeout' : 60
+        }
+        try:
+            with open('master_config.json', 'r') as jsoninput:
+                inp = json.load(jsoninput)
+            for k in config.keys():
+                if k in inp.keys():
+                    config[k] = inp[k]
+        except IOError:
+            self.logs.warning('Failed to read configuration. Use default instead.')
+        return config
 
     def get_rdd_by_id(self, id):
         for rdd in self.rdds:
@@ -130,6 +198,66 @@ class simRDD:
         new_rdd = filterRDD(self.context, [self.rdd_id], new_parts, fun)
         return new_rdd
 
+    def union(self):
+        pass
+
+    def group_by_key(self):
+        pass
+    
+    def reduce_by_key(self):
+        pass
+    
+    def distinct(self):
+        pass
+
+    def cogroup(self):
+        pass
+    
+    def intersection(self):
+        pass
+
+    def join(self):
+        pass
+
+    def sort_by_key(self):
+        pass
+    
+    def cartesian(self):
+        pass
+
+    def coalesce(self):
+        pass
+
+    def repartition(self):
+        pass
+# transformation
+    def reduce(self):
+        pass
+    
+    def collect(self):
+        pass
+
+    def count(self):
+        pass
+
+    def foreach(self):
+        pass
+
+    def take(self):
+        pass
+
+    def first(self):
+        pass
+
+    def take_sample(self):
+        pass
+    
+    def take_ordered(self):
+        pass
+
+    def count_by_key(self):
+        pass
+# action
     def __str__(self):
         out = []
         for part in self.partitions:
