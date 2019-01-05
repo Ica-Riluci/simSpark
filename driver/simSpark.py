@@ -12,7 +12,8 @@ class simApp:
         self.app_name = name
         self.app_id = None
         self.status = 'WAIT'
-        self.executor_list = []
+        self.idle_executors = []
+        self.busy_executors = []
 
 class simContext:
     def __init__(self, app, port=9999):
@@ -21,6 +22,7 @@ class simContext:
         self.port = port
         self.listener = SparkConn('localhost', port)
         self.rdds = []
+        self.undone = []
         self.logs = logging.getLogger('simSparkLog')
         self.logs.setLevel(logging.DEBUG)
         fh = logging.handlers.RotatingFileHandler(
@@ -69,7 +71,8 @@ class simContext:
             msg = self.listener.accept()
             if msg['type'] == 'resource update':
                 self.app.app_id = msg['value']['id']
-                self.app.executor_list = msg['value']['executor_list']
+                self.app.idle_executor = msg['value']['idle_executor']
+                self.app.busy_executor = msg['value']['busy_executor']
                 break
 
     def wrap_msg(self, address, port, type, value):
@@ -108,6 +111,12 @@ class simContext:
                 return rdd
         return None
 
+    def get_stage_by_id(self, id):
+        for stage in self.undone:
+            if stage.stage.stage_id == id:
+                return stage
+        return None
+
     def parallelize(self, arr, fineness=-1):
         part = []
         if fineness == 0 or fineness < -1:
@@ -123,7 +132,31 @@ class simContext:
             part.append(new_par)
         new_rdd = simRDD(self, [], part)
         self.rdds.append(new_rdd)
-        return new_rdd        
+        return new_rdd
+
+class jobManager:
+    def __init__(self, ctx, stage, son=None):
+        self.context = ctx
+        self.stage = stage
+        self.son_stage = son
+        self.context.undone.append(self)
+    
+    def prepare(self):
+        no_parent = True
+        for task in self.stage.tasks:
+            for pstage in task.parent_stage:
+                no_parent = False
+                if not pstage.submitted:
+                    post = jobManager(self.context, pstage, self)
+                    post.prepare()
+        self.stage.submitted = True
+        if no_parent:
+            self.submit()
+    
+    def submit(self):
+        for task in self.stage.tasks:
+            pass
+
 
 class simStep:
     def __init__(self, rdd, part_idx):
@@ -156,10 +189,15 @@ class simTask:
         self.parent_stage = prev
 
 class simStage:
+    stage_count = 0
     def __init__(self, ctx, finalrdd):
+        simStage.stage_count += 1
+        self.stage_id = simStage.stage_count
         self.context = ctx
         self.rdd = finalrdd
         self.tasks = []
+        self.done = False
+        self.submitted = False
 
     def schedule(self):
         tmptasklist = []
@@ -245,6 +283,7 @@ class simRDD:
         out = []
         for part in self.partitions:
             out += self.compute(part).records
+        return out
 
     def map(self, fun):
         new_parts = []
@@ -343,6 +382,12 @@ class mappedRDD(simRDD):
         super(mappedRDD, self).__init__(ctx, dep, part, s_lvl)
         self.func = fun
 
+    def get_dependencies_list(self, part):
+        ret = [{
+            'rdd' : self,
+            'partition' : [self.dependencies[0].partitions[part.idx]]}]
+        return ret
+
     def compute(self, part):
         recs = self._1v1dependencies(part)
         new_recs = []
@@ -355,6 +400,12 @@ class flatMappedRDD(simRDD):
     def __init__(self, ctx, dep, part, fun, s_lvl=simRDD.STORE_NONE):
         super(flatMappedRDD, self).__init__(ctx, dep, part, s_lvl)
         self.func = fun
+
+    def get_dependencies_list(self, part):
+        ret = [{
+            'rdd' : self,
+            'partition' : [self.dependencies[0].partitions[part.idx]]}]
+        return ret
 
     def compute(self, part):
         recs = self._1v1dependencies(part)
@@ -373,6 +424,12 @@ class filterRDD(simRDD):
     def __init__(self, ctx, dep, part, fun, s_lvl=simRDD.STORE_NONE):
         super(filterRDD, self).__init__(ctx, dep, part, s_lvl)
         self.func = fun
+
+    def get_dependencies_list(self, part):
+        ret = [{
+            'rdd' : self,
+            'partition' : [self.dependencies[0].partitions[part.idx]]}]
+        return ret
     
     def compute(self, part):
         recs = self._1v1dependencies(part)
