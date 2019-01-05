@@ -127,6 +127,18 @@ class simContext:
         new_rdd._register()
         return new_rdd
 
+    def search_stage_by_rdd(self, rid):
+        for s in self.undone:
+            if s.rdd.rdd_id == rid:
+                return s
+        return None
+    
+    def search_rdd_by_id(self, rid):
+        for r in self.rdds:
+            if r.rdd_id == rid:
+                return r
+        return None
+
 
 # for test
 def _buildin_map(self, x):
@@ -225,6 +237,22 @@ class simRDD:
             'partition' : [self.dependencies[0].partitions[part.idx]]
         }]
 
+    def get_dependencies_list(self, part):
+        return []
+
+    def ancestor(self, part):
+        dep = self.get_dependencies_list(part)
+        ret = []
+        if self.after_shuffle:
+            for dependency in dep:
+                ret.append(dependency['rdd'].rdd_id)
+            return ret
+        else:
+            for dependency in dep:
+                for part in dependency['partition']:
+                    ret += dependency['rdd'].ancestor(part)
+            return list(set(ret))
+
 class mappedRDD(simRDD):
     def __init__(self, ctx, dep, part, fun, s_lvl=simRDD.STORE_NONE):
         super(mappedRDD, self).__init__(ctx, dep, part, s_lvl)
@@ -248,3 +276,24 @@ class filterRDD(simRDD):
 
     def get_dependencies_list(self, part):
         return self._1on1_dependencies(part)
+
+class simStage:
+    stage_count = 0
+    def __init__(self, ctx, finalrdd):
+        simStage.stage_count += 1
+        self.stage_id = simStage.stage_count
+        self.context = ctx
+        self.rdd = finalrdd
+        self.done = False
+        self.submitted = False
+        self.parent_stage = []
+    
+    def schedule(self):
+        ancestors = []
+        for part in self.rdd.partitions:
+            ancestors += self.rdd.ancestor(part)
+        ancestors = list(set(ancestors))
+        for rid in ancestors:
+            if not self.context.search_stage_by_rdd(rid):
+                new_stage = simStage(self.context, self.context.search_rdd_by_id(rid))
+                self.parent_stage.append(new_stage)
