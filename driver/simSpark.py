@@ -109,3 +109,142 @@ class simContext:
         except IOError:
             self.logs.warning('Failed to read configuration. Use default instead.')
         return config
+
+    def parallelize(self, arr, fineness=-1):
+        part = []
+        if fineness == 0 or fineness < -1:
+            self.logs.error('Invalid arguments of parallelism. Failed to create RDD')
+            return None
+        if fineness == -1:
+            fineness = len(arr)
+        for i in range(0, fineness):
+            l = len(arr) // fineness * i
+            r = len(arr) // fineness * (i + 1)
+            data = arr[l:r]
+            new_par = simPartition(i, data)
+            part.append(new_par)
+        new_rdd = simRDD(self, [], part)
+        new_rdd._register()
+        return new_rdd
+
+
+# for test
+def _buildin_map(self, x):
+    if x < 4:
+        return x + 1
+    return x
+    
+def _buildin_reduce(self, x, y):
+    return x + y
+
+class simPartition:
+    MEMORY = 0
+    FILE = 1
+    PARENT = 2
+    def __init__(self, idx, source=None, method=MEMORY):
+        self.source = source
+        self.method = method
+        self.idx = idx
+    
+    @property
+    def records(self):
+        if self.method == simPartition.MEMORY:
+            return self.source
+        else:
+            pass
+    
+    def __str__(self):
+        return self.records.__str__()
+
+    __repr__ = __str__
+
+
+class simRDD:
+    rdd_count = 0
+    
+    STORE_NONE = 0
+    STORE_MEM = 1
+
+    def __init__(self, ctx, dep=[], part=[], s_lvl=STORE_NONE):
+        self.context = ctx
+        self.dependencies = dep
+        self.partitions = part
+        self.storage_lvl = s_lvl
+
+    @property
+    def after_shuffle(self):
+        return False 
+
+    def _register(self):
+        simRDD.rdd_count += 1
+        self.rdd_id = simRDD.rdd_count
+        self.context.rdds.append(self)
+
+    def _map(self, fun):
+        new_parts = []
+        for i in range(0, len(self.partitions)):
+            new_part = simPartition(i, [], simPartition.PARENT)
+            new_parts.append(new_part)
+        new_rdd = mappedRDD(self.context, [self.rdd_id], new_parts, fun)
+        return new_rdd
+
+    def map(self, fun):
+        ret = self._map(fun)
+        ret._register()
+        return ret
+
+    def _flatmap(self, fun):
+        new_parts = []
+        for i in range(0, len(self.partitions)):
+            new_part = simPartition(i, [], simPartition.PARENT)
+            new_parts.append(new_part)
+        new_rdd = flatMappedRDD(self.context, [self.rdd_id], new_parts, fun)
+        return new_rdd
+    
+    def flatmap(self, fun):
+        ret = self._flatmap(fun)
+        ret._register()
+        return ret
+
+    def _filter(self, fun):
+        new_parts = []
+        for i in range(0, len(self.partitions)):
+            new_part = simPartition(i, [], simPartition.PARENT)
+            new_parts.append(new_part)
+        new_rdd = filterRDD(self.context, [self.rdd_id], new_parts, fun)
+        return new_rdd
+
+    def filter(self, fun):
+        ret = self._filter(fun)
+        ret._register()
+        return ret
+
+    def _1on1_dependencies(self, part):
+        return [{
+            'rdd' : self.dependencies[0],
+            'partition' : [self.dependencies[0].partitions[part.idx]]
+        }]
+
+class mappedRDD(simRDD):
+    def __init__(self, ctx, dep, part, fun, s_lvl=simRDD.STORE_NONE):
+        super(mappedRDD, self).__init__(ctx, dep, part, s_lvl)
+        self.func = fun
+
+    def get_dependencies_list(self, part):
+        return self._1on1_dependencies(part)
+
+class flatMappedRDD(simRDD):
+    def __init__(self, ctx, dep, part, fun, s_lvl=simRDD.STORE_NONE):
+        super(flatMappedRDD, self).__init__(ctx, dep, part, s_lvl)
+        self.func = fun
+
+    def get_dependencies_list(self, part):
+        return self._1on1_dependencies(part)
+
+class filterRDD(simRDD):
+    def __init__(self, ctx, dep, part, fun, s_lvl=simRDD.STORE_NONE):
+        super(filterRDD, self).__init__(ctx, dep, part, s_lvl)
+        self.func = fun
+
+    def get_dependencies_list(self, part):
+        return self._1on1_dependencies(part)
