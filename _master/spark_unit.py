@@ -7,12 +7,12 @@ class SparkUnit:
 
 class ApplicationUnit(SparkUnit):
     app_count = 0
-    def __init__(self, address, port, name, did, exec_req):
+    def __init__(self, address, port, name, did):
         ApplicationUnit.app_count += 1
         super(ApplicationUnit, self).__init__(address, port)
         self.app_name = name
         self.driver_id = did
-        self.executors_req = exec_req
+        self.executors_req = -1
         self.executor_list = []
         self.state = 'WAIT'
         self.app_id = ApplicationUnit.app_count
