@@ -39,9 +39,15 @@ class backendComm(threading.Thread):
                 q['rid']
             ))
         else:
+            dep = []
+            for d in rdd.dependencies:
+                dep.append(d.rdd_id)
             value = {
                 'rdd_type' : rdd.type,
-                'part_len' : len(rdd.partitions)
+                'part_len' : len(rdd.partitions),
+                'dependencies' : dep,
+                'funtype' : rdd.funtype,
+                'fun' : rdd.fun.__name__
             }
             self.lis.sendMessage(self.context.wrap_msg(
                 q['host'],
@@ -384,6 +390,8 @@ class simRDD:
     MAP_RDD = 1
     FLATMAP_RDD = 2
     FILTER_RDD = 3
+    BUILDIN = 0
+    FREESOURCE = 1
 
     def __init__(self, ctx, dep=[], part=[], s_lvl=STORE_NONE):
         self.context = ctx
@@ -392,6 +400,8 @@ class simRDD:
         for p in self.partitions:
             p.set_rdd(self.rdd_id)
         self.storage_lvl = s_lvl
+        self.fun = None
+        self.funtype = sim.BUILDIN
 
     @property
     def after_shuffle(self):
@@ -406,42 +416,42 @@ class simRDD:
         self.rdd_id = simRDD.rdd_count
         self.context.rdds.append(self)
 
-    def _map(self, fun):
+    def _map(self, fun, ftype=FREESOURCE):
         new_parts = []
         for i in range(0, len(self.partitions)):
             new_part = simPartition(self.context, i, [], simPartition.PARENT)
             new_parts.append(new_part)
-        new_rdd = mappedRDD(self.context, [self.rdd_id], new_parts, fun)
+        new_rdd = mappedRDD(self.context, [self.rdd_id], new_parts, fun, ftype)
         return new_rdd
 
-    def map(self, fun):
-        ret = self._map(fun)
+    def map(self, fun, ftype=FREESOURCE):
+        ret = self._map(fun, ftype)
         ret._register()
         return ret
 
-    def _flatmap(self, fun):
+    def _flatmap(self, fun, ftype=FREESOURCE):
         new_parts = []
         for i in range(0, len(self.partitions)):
             new_part = simPartition(self.context, i, [], simPartition.PARENT)
             new_parts.append(new_part)
-        new_rdd = flatMappedRDD(self.context, [self.rdd_id], new_parts, fun)
+        new_rdd = flatMappedRDD(self.context, [self.rdd_id], new_parts, fun, ftype)
         return new_rdd
     
-    def flatmap(self, fun):
-        ret = self._flatmap(fun)
+    def flatmap(self, fun, ftype=FREESOURCE):
+        ret = self._flatmap(fun, ftype)
         ret._register()
         return ret
 
-    def _filter(self, fun):
+    def _filter(self, fun, ftype=FREESOURCE):
         new_parts = []
         for i in range(0, len(self.partitions)):
             new_part = simPartition(self.context, i, [], simPartition.PARENT)
             new_parts.append(new_part)
-        new_rdd = filterRDD(self.context, [self.rdd_id], new_parts, fun)
+        new_rdd = filterRDD(self.context, [self.rdd_id], new_parts, fun, ftype)
         return new_rdd
 
-    def filter(self, fun):
-        ret = self._filter(fun)
+    def filter(self, fun, ftype=FREESOURCE):
+        ret = self._filter(fun, ftype)
         ret._register()
         return ret
 
@@ -479,9 +489,10 @@ class simRDD:
                 continue
 
 class mappedRDD(simRDD):
-    def __init__(self, ctx, dep, part, fun, s_lvl=simRDD.STORE_NONE):
+    def __init__(self, ctx, dep, part, fun, ftype=simRDD.FREESOURCE, s_lvl=simRDD.STORE_NONE):
         super(mappedRDD, self).__init__(ctx, dep, part, s_lvl)
-        self.func = fun
+        self.fun = fun
+        self.funtype = ftype
 
     @property
     def type(self):
@@ -491,9 +502,10 @@ class mappedRDD(simRDD):
         return self._1on1_dependencies(part)
 
 class flatMappedRDD(simRDD):
-    def __init__(self, ctx, dep, part, fun, s_lvl=simRDD.STORE_NONE):
+    def __init__(self, ctx, dep, part, fun, ftype=simRDD.FREESOURCE, s_lvl=simRDD.STORE_NONE):
         super(flatMappedRDD, self).__init__(ctx, dep, part, s_lvl)
-        self.func = fun
+        self.fun = fun
+        self.funtype = ftype
 
     @property
     def type(self):
@@ -503,9 +515,10 @@ class flatMappedRDD(simRDD):
         return self._1on1_dependencies(part)
 
 class filterRDD(simRDD):
-    def __init__(self, ctx, dep, part, fun, s_lvl=simRDD.STORE_NONE):
+    def __init__(self, ctx, dep, part, fun, ftype=simRDD.FREESOURCE, s_lvl=simRDD.STORE_NONE):
         super(filterRDD, self).__init__(ctx, dep, part, s_lvl)
-        self.func = fun
+        self.fun = fun
+        self.funtype = ftype
 
     @property
     def type(self):
