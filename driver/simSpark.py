@@ -15,6 +15,7 @@ from publib.SparkConn import *
 
 class simApp:
     def __init__(self, name='asimApp'):
+        # print('A new app <%s>' % name)
         self.app_name = name
         self.app_id = None
         self.status = 'WAIT'
@@ -182,7 +183,7 @@ class simContext:
                 break
         # register app
         value = {
-            'host' : self.config['self_host'],
+            'host' : self.config['driver_host'],
             'port' : self.port,
             'did' : self.driver_id,
             'app_name' : self.app.app_name
@@ -219,9 +220,12 @@ class simContext:
     def load_config(self):
         self.logs.info('<master_config.json> is about to be loaded.')
         config = {
-            'self_host' : 'localhost',
-            'master_host' : 'localhost',
+            'master_host' : '127.0.0.1',
             'master_port' : 7077,
+            'driver_host' : '127.0.0.1',
+            'driver_port' : 9999,
+            'backend_port' : 10000,
+            'parallel_stage' : 1,
             'timeout' : 60
         }
         try:
