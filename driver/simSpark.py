@@ -160,6 +160,7 @@ class simContext:
         self.parallel_stage = self.config['parallel_stage']
         self.rdds = []
         self.undone = []
+        self.stages = []
         self.listener = SparkConn(self.config['driver_host'], self.config['driver_port'])
 
         # register driver
@@ -251,7 +252,7 @@ class simContext:
         return new_rdd
 
     def search_stage_by_rdd(self, rid):
-        for s in self.undone:
+        for s in self.stages:
             if s.rdd.rdd_id == rid:
                 return s
         return None
@@ -401,7 +402,7 @@ class simRDD:
             p.set_rdd(self.rdd_id)
         self.storage_lvl = s_lvl
         self.fun = None
-        self.funtype = sim.BUILDIN
+        self.funtype = simRDD.BUILDIN
 
     @property
     def after_shuffle(self):
@@ -487,6 +488,26 @@ class simRDD:
                 stage.boot()
             while not self.context.list_clear(stages):
                 continue
+    
+    # actions
+    def reduce(self, fun):
+        self.calc()
+        while not self.context.search_stage_by_rdd(self).done:
+            continue
+        col = []
+        for part in self.partitions:
+            ret = part.records[0]
+            restrec = part.records[1:]
+            for rec in restrec:
+                ret = fun(ret, rec)
+            col.append(ret)
+        if len(col) <= 0:
+            return None
+        ret = col[0]
+        for rec in col[1:]:
+            ret = fun(ret, rec)
+        return ret
+            
 
 class mappedRDD(simRDD):
     def __init__(self, ctx, dep, part, fun, ftype=simRDD.FREESOURCE, s_lvl=simRDD.STORE_NONE):
@@ -552,11 +573,12 @@ class simStage:
             if not self.context.search_stage_by_rdd(pstage.rdd.rdd_id):
                 pstage.register()
         self.context.undone.append(self)
+        self.context.stages.append(self)
         
     def boot(self):
         self.context.resource_request(len(self.rdd.partitions))
         while True:
-            msg = self.context.listener.accpet()
+            msg = self.context.listener.accept()
             if msg['type'] == 'resource_ready':
                 self.context.idle_executors += msg['value']
                 break
@@ -565,7 +587,7 @@ class simStage:
                 if self.context.app.busy:
                     self.context.resource_request()
                     while True:
-                        msg = self.context.listener.accpet()
+                        msg = self.context.listener.accept()
                         if msg['type'] == 'resource_ready':
                             self.context.idle_executors += msg['value']
                         break
