@@ -466,7 +466,7 @@ class Application:
             payload_heap.add_payload()
         for k in asstable.keys():
             self.request_resource(int(k), asstable[k], self.drivers[d_idx].app_id)
-        self.inform_wait_allocation(self.drivers[d_idx])
+        # self.inform_wait_allocation(self.drivers[d_idx])
 
     def kill_driver(self, did):
         d_idx = self.search_driver_by_id(did)
