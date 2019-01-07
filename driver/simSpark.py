@@ -28,6 +28,7 @@ class simApp:
 
 class backendComm(threading.Thread):
     def __init__(self, ctx):
+        threading.Thread.__init__(self)
         self.context = ctx
 
     def query_rdd(self, q):
