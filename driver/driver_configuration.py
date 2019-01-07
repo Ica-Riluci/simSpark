@@ -3,10 +3,10 @@ import sys
 
 defaultconfig = {
     'master_host' : '127.0.0.1',
-    'master_port' : '7077',
+    'master_port' : 7077,
     'driver_host' : '127.0.0.1',
-    'driver_port' : '9999',
-    'backend_port' : '10000',
+    'driver_port' : 9999,
+    'backend_port' : 10000,
     'parallel_stage' : 1
 }
 
