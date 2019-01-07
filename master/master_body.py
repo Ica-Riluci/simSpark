@@ -132,7 +132,9 @@ class Application:
             host,
             port,
             'ghost_executor',
-            eid
+            {
+                'eid':eid
+            }
         ))
     
     def feedback_executor_elimination(self, executor, e_idx):
@@ -356,27 +358,33 @@ class Application:
     def update_executors_of_worker(self, worker):
         worker_idx = self.search_worker_by_id(worker['id'])
         if worker_idx:
-            for exec in worker['list']:
-                if exec['id'] < 0:
-                    self.register_executor(worker['host'], worker['port'], worker['id'], exec['id'], exec['app_id'])
+            for executor in worker['list']:
+                if executor['id'] < 0:
+                    self.register_executor(worker['host'], worker['port'], worker['id'], executor['id'], executor['app_id'])
                 else:
-                    e_idx = self.search_executor_by_id(exec['id'])
+                    e_idx = self.search_executor_by_id(executor['id'])
                     if e_idx:
-                        self.executors[e_idx].status = exec['status']
+                        self.executors[e_idx].status = executor['status']
                     else:
-                        self.logs.error('Executor %d does not exist.' % (exec['id']))
-                        self.feedback_ghost_executor(worker['host'], worker['port'], exec['id'])
+                        self.logs.error('Executor %d does not exist.' % (executor['id']))
+                        self.feedback_ghost_executor(worker['host'], worker['port'], executor['id'])
         else:
             self.logs.error('Worker %d does not exists.' % (worker['id']))
 
-    def eliminate_executor(self, executors):
+    def eliminate_executor(self, value):
+        executors = value['eid']
         eid_list = []
         for el in executors:
-            eid_list.append(el['eid'])
+            eid_list.append(el)
         self.kill_executors(eid_list)
         for e in executors:
-            e_idx = self.search_executor_by_id(e['eid'])
-            self.feedback_executor_elimination(e, e_idx)
+            e_idx = self.search_executor_by_id(e)
+            exe_info = {
+                'eid': e,
+                'host': value['host'],
+                'port': value['port']
+            }
+            self.feedback_executor_elimination(exe_info, e_idx)
 
     def register_driver(self, driver):
         new_driver = DriverUnit(driver['host'], driver['port'])
@@ -518,7 +526,7 @@ class Application:
         # main loop
         while True:
             msg = self.listener.accept()
-            self.dispensor(json.loads(msg['value']))
+            self.dispensor(msg)
 
 
 # instantiation
