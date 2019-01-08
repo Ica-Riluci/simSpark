@@ -214,7 +214,7 @@ class simContext:
         wrapped = {
             'host' : address,
             'port' : port,
-            'value' : raw
+            'value' : json.dumps(raw)
         }
         return wrapped
 
