@@ -11,6 +11,11 @@ sys.path.append('..')
 
 from publib.SparkConn import *
 
+class appInfo:
+    def __init__(self, id, host, port, worker):
+        self.id = id
+        self.context = executor.sparkContext(id, worker, host, port)
+
 class workerBody:
 
     def __init__(self):
@@ -33,11 +38,11 @@ class workerBody:
         self.id = -1
         self.appId = -1
         self.maxExectuorNum = 10
+        self.fetchLock = None
+        self.listener = None
+        self.driver_listener = None
 
-        # virtual Spark Context
-        # An array of RDD and partition result
-        self.RDDList = []
-        self.partitionList = []
+        self.appList = []
 
     # functions of Spark Context
     def getRdd(self, index, host, port):
@@ -80,6 +85,7 @@ class workerBody:
 
     # todo give a lock to this function
     def fetch_info(self, rddid, host, port):
+        self.fetchLock.acquire()
         msg = {
             'rid': rddid,
             'host': self.config['worker_host'],
@@ -89,13 +95,14 @@ class workerBody:
         self.driver_listener.sendMessage(wrapMsg)
         msg = None
         while True:
-            rawmsg = self.driver_listener.accept()
-            msg = json.loads(rawmsg['value'])
+            msg = self.driver_listener.accept()
             if msg['type'] == 'fetch_info_ack':
+                self.fetchLock.release()
                 return msg['value']
 
     # todo give a lock to this function
     def fetch_data(self, pid, rddid, host, port):
+        self.fetchLock.acquire()
         msg = {
             'pidx': pid,
             'rid': rddid,
@@ -106,9 +113,9 @@ class workerBody:
         self.driver_listener.sendMessage(wrapMsg)
         msg = None
         while True:
-            rawmsg = self.driver_listener.accept()
-            msg = json.loads(rawmsg['value'])
+            msg = self.driver_listener.accept()
             if msg['type'] == 'fetch_data_ack':
+                self.fetchLock.release()
                 return msg['value']
 
     # without changed,need change after use
@@ -119,6 +126,7 @@ class workerBody:
             'worker_host': 'localhost',
             'worker_port': 8801,
             'webui_port': 8080,
+            'fetch_port': 9000,
             'worker_timeout': 60000,
             'spread_out': True,
             'default_core': -1,
@@ -139,6 +147,9 @@ class workerBody:
     def reg_succ_worker(self, value):
         self.connected = True
         self.id = value['id']
+        # initialize the fetch_port lock and the driver_listener
+        self.fetchLock = threading.Lock()
+        self.driver_listener = SparkConn(self.config['worker_host'], self.config['fetch_port'])
 
     def reg_succ_executor(self, value):
         oid = value['original']
@@ -173,8 +184,8 @@ class workerBody:
             # check if there is an executor is completed
             eid_list = []
             for nex in renew_list:
-                if nex.main.status == 'COMPLETED':
-                    eid_list.append(nex.eid)
+                if nex.status == 'COMPLETED':
+                    eid_list.append(nex['id'])
             if not(eid_list == []):
                 delmsg = {
                     'host': self.config['worker_host'],
@@ -202,7 +213,7 @@ class workerBody:
         # self.appId = value['app_id']
         elist = []
         for i in range(1, num):
-            ex = executor(self.exeid, value['app_id'], self, host, port)
+            ex = executor.executor(self.exeid, value['app_id'], self, host, port)
             self.executors.append(ex)
             self.executors_status.append(ex.status)
             idmsg = {
@@ -253,14 +264,19 @@ class workerBody:
         self.connected = False
         self.register_worker()
 
-    # todo open the thread pool to run the executors in parallel
+    # todo open the thread pool to run the executors in parallel, still need to add port and host
     def pending_task(self, value):
         eid = value['eid']
         rid = value['rid']
         pid = value['pidx']
+        appid = value['appid']
+        host = value['host']
+        port = value['port']
+        app = self.search_app_by_id(appid, host, port)
         index = self.search_executor_by_id(eid)
         if index != None:
-            self.executors[index].runExecutors(rid, pid)
+            self.executors[index].setId(rid, pid)
+            self.executors[index].start()
         else:
             self.logs.critical('Missing executor id.')
 
@@ -283,10 +299,16 @@ class workerBody:
                 return self.executors.index(e)
         return None
 
+    def search_app_by_id(self, id, host, port):
+        for e in self.appList:
+            if e.id == id:
+                return self.appList.index(e)
+        app = appInfo(id, host, port, self)
+        self.appList.append(app)
+        return app
+
     def process(self, msg):
-        if msg['type'] == 'register_worker_success':
-            self.reg_succ_worker(msg['value'])
-        elif msg['type'] == 'request_resource':
+        if msg['type'] == 'request_resource':
             self.req_executor(msg['value'])
         elif msg['type'] == 'register_worker':
             self.reregister()
@@ -305,8 +327,11 @@ class workerBody:
         # a timer to set initial register
         reg_timer = threading.Timer(5.0, self.register_worker)
         reg_timer.start()
-
-        # todo set a thread pool
+        while True:
+            msg = self.listener.accept()
+            if msg['type'] == 'register_worker_success':
+                self.reg_succ_worker(msg['value'])
+                break
 
         # a timer to send the status change within a period of time
         status_renew_timer = threading.Timer(2.0, self.send_executor_status)
@@ -317,7 +342,7 @@ class workerBody:
             msg = self.listener.accept()
             # print str(msg)
             # print str(msg['value'])
-            self.process(json.loads(msg['value']))
+            self.process(msg)
 
 app = workerBody()
 app.run()
