@@ -21,7 +21,7 @@ class executor(threading.Thread):
         result = self.context.getPartition(self.rdd_id, self.partition_id)
 
         # todo send the result out to the driver
-        self.context.getPartition.sendResult(result)
+        self.context.getPartition.sendResult(result, self.rdd_id, self.partition_id)
 
         self.status = 'COMPLETED'
 
@@ -66,6 +66,15 @@ class executor(threading.Thread):
 
 
 class sparkContext(object):
+    STORE_NONE = 0
+    STORE_MEM = 1
+    NORMAL_RDD = 0
+    MAP_RDD = 1
+    FLATMAP_RDD = 2
+    FILTER_RDD = 3
+    BUILDIN = 0
+    FREESOURCE = 1
+
     def __init__(self, appid, worker, host, port):
         self.appid = appid
         self.driverhost = host
@@ -85,7 +94,16 @@ class sparkContext(object):
                 'fun' : rdd.fun.__name__
         }
         '''
-        rdd =
+        type = rddStatus['rdd_type']
+        if type == self.NORMAL_RDD:
+            rdd = simRDD(self)
+        elif type == self.MAP_RDD:
+            rdd = mappedRDD(self, rddStatus['dependencies'], rddStatus['part_len'], rddStatus['fun'])
+        elif type == self.FLATMAP_RDD:
+            pass
+        elif type == self.FILTER_RDD:
+            rdd = filterRDD(self, rddStatus['dependencies'], rddStatus['part_len'], rddStatus['fun'])
+
         self.RDDList.append(rdd)
         return rdd
 
@@ -98,7 +116,7 @@ class sparkContext(object):
             partition = self.worker.fetch_data(rddid, partitionid, self.driverhost, self.driverport)
         else:
             for d in dependencyList:
-                dataList.append(self.getPartition(d.rddid, d.partitionid))
+                dataList.append(self.getPartition(d['rdd'], d['partition']))
             partition = rdd.compute(dataList, rddid, partitionid)
         return partition
 
@@ -115,6 +133,10 @@ class sparkContext(object):
                 return e
         rdd = self.getPartition(rddid, pid)
         return rdd
+
+    def sendResult(self, result, rddid, pid):
+        self.worker.send_result(result, rddid, pid, self.driverhost, self.driverport)
+
 
 class simRDD:
     rdd_count = 0
@@ -146,50 +168,6 @@ class simRDD:
     def type(self):
         return simRDD.NORMAL_RDD
 
-    def _register(self):
-        simRDD.rdd_count += 1
-        self.rdd_id = simRDD.rdd_count
-        self.context.rdds.append(self)
-
-    def _map(self, fun, ftype=FREESOURCE):
-        new_parts = []
-        for i in range(0, len(self.partitions)):
-            new_part = simPartition(self.context, i, [], simPartition.PARENT)
-            new_parts.append(new_part)
-        new_rdd = mappedRDD(self.context, [self.rdd_id], new_parts, fun, ftype)
-        return new_rdd
-
-    def map(self, fun, ftype=FREESOURCE):
-        ret = self._map(fun, ftype)
-        ret._register()
-        return ret
-
-    def _flatmap(self, fun, ftype=FREESOURCE):
-        new_parts = []
-        for i in range(0, len(self.partitions)):
-            new_part = simPartition(self.context, i, [], simPartition.PARENT)
-            new_parts.append(new_part)
-        new_rdd = flatMappedRDD(self.context, [self.rdd_id], new_parts, fun, ftype)
-        return new_rdd
-
-    def flatmap(self, fun, ftype=FREESOURCE):
-        ret = self._flatmap(fun, ftype)
-        ret._register()
-        return ret
-
-    def _filter(self, fun, ftype=FREESOURCE):
-        new_parts = []
-        for i in range(0, len(self.partitions)):
-            new_part = simPartition(self.context, i, [], simPartition.PARENT)
-            new_parts.append(new_part)
-        new_rdd = filterRDD(self.context, [self.rdd_id], new_parts, fun, ftype)
-        return new_rdd
-
-    def filter(self, fun, ftype=FREESOURCE):
-        ret = self._filter(fun, ftype)
-        ret._register()
-        return ret
-
     def _1on1_dependencies(self, part):
         return [{
             'rdd': self.dependencies[0],
@@ -199,48 +177,8 @@ class simRDD:
     def get_dependencies_list(self, part):
         return []
 
-    def ancestor(self, part):
-        dep = self.get_dependencies_list(part)
-        ret = []
-        if self.after_shuffle:
-            for dependency in dep:
-                ret.append(dependency['rdd'].rdd_id)
-            return ret
-        else:
-            for dependency in dep:
-                for part in dependency['partition']:
-                    ret += dependency['rdd'].ancestor(part)
-            return list(set(ret))
-
-    def calc(self):
-        final_stage = simStage(self.context, self)
-        final_stage.schedule()
-        final_stage.register()
-        while len(self.context.ready_stages) > 0:
-            stages = self.context.ready_stages
-            for stage in stages:
-                stage.boot()
-            while not self.context.list_clear(stages):
-                continue
-
-    # actions
-    def reduce(self, fun):
-        self.calc()
-        while not self.context.search_stage_by_rdd(self).done:
-            continue
-        col = []
-        for part in self.partitions:
-            ret = part.records[0]
-            restrec = part.records[1:]
-            for rec in restrec:
-                ret = fun(ret, rec)
-            col.append(ret)
-        if len(col) <= 0:
-            return None
-        ret = col[0]
-        for rec in col[1:]:
-            ret = fun(ret, rec)
-        return ret
+    def compute(self, dep_list):
+        return []
 
 class mappedRDD(simRDD):
     def __init__(self, ctx, dep, part, fun, ftype=simRDD.FREESOURCE, s_lvl=simRDD.STORE_NONE):
@@ -254,6 +192,17 @@ class mappedRDD(simRDD):
 
     def get_dependencies_list(self, part):
         return self._1on1_dependencies(part)
+
+    def compute(self, dep_list):
+        res = []
+        last_part = dep_list[0]
+        for e in last_part:
+            res.append(self.buildin(e))
+
+    def buildin(self, x):
+        if x < 4:
+            return x + 1
+        return x
 
 class flatMappedRDD(simRDD):
     def __init__(self, ctx, dep, part, fun, ftype=simRDD.FREESOURCE, s_lvl=simRDD.STORE_NONE):
@@ -279,5 +228,4 @@ class filterRDD(simRDD):
         return simRDD.FILTER_RDD
 
     def get_dependencies_list(self, part):
-
-return self._1on1_dependencies(part)
+        return self._1on1_dependencies(part)

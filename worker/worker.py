@@ -118,6 +118,18 @@ class workerBody:
                 self.fetchLock.release()
                 return msg['value']
 
+    # todo still need to confirm the interface
+    def send_result(self, value, pid, rddid, host, port):
+        self.fetchLock.acquire()
+        msg = {
+            'pid': pid,
+            'rid': rddid,
+            'value': value
+        }
+        wrapMsg = self.wrap_msg(host, port, '', msg)
+        self.driver_listener.sendMessage(wrapMsg)
+        self.fetchLock.release()
+
     # without changed,need change after use
     def load_config(self):
         config = {
@@ -299,13 +311,18 @@ class workerBody:
                 return self.executors.index(e)
         return None
 
-    def search_app_by_id(self, id, host, port):
+    def search_app_by_id(self, id, host=None, port=None):
         for e in self.appList:
             if e.id == id:
                 return self.appList.index(e)
         app = appInfo(id, host, port, self)
         self.appList.append(app)
-        return app
+        return self.appList.index(app)
+
+    def delete_app(self, value):
+        id = value['appid']
+        index = self.search_app_by_id(id)
+        del self.appList[index]
 
     def process(self, msg):
         if msg['type'] == 'request_resource':
@@ -320,6 +337,8 @@ class workerBody:
             self.ghost_executor(msg['value'])
         elif msg['type'] == 'pending_task':
             self.pending_task(msg['value'])
+        elif msg['type'] == 'delete_app':
+            self.delete_app(msg['value'])
 
     def run(self):
         self.listener = SparkConn(self.config['worker_host'], self.config['worker_port'])
