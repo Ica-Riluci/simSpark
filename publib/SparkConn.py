@@ -21,7 +21,7 @@ class SparkConn:
     # return a dict with type and value 2 attributes
     def accept(self):
         c, addr = self.s.accept()
-        resp = c.recv(4096)
+        resp = str(c.recv(4096))
         c.close()
         jresp = json.loads(resp)
         pyDict = json.loads(jresp['value'])
