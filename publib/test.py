@@ -21,7 +21,7 @@ def tick():
     timer = threading.Timer(1, ptime)
     timer.start()
 
-def wrap_msg(self, address, port, type, value):
+def wrap_msg(address, port, type, value):
   raw = {
     'type' : type,
     'value' : value
