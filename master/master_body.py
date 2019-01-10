@@ -14,6 +14,18 @@ sys.path.append('..')
 from master.spark_unit import *
 from publib.SparkConn import *
 
+global timer
+timer = None
+
+def tick(i, func, *args, **kwargs):
+    global timer
+    if not timer:
+        timer.finished.wait(i)
+        timer.function(*args, **kwargs)
+    else:
+        timer = threading.Timer(i, func, *args, **kwargs)
+        timer.start()
+
 class Application:
     
     def __init__(self):
@@ -64,8 +76,7 @@ class Application:
     def periodical_signal(self):
         msg = self.wrap_msg(self.config['master_host'], self.config['master_port'], 'check_worker_TO', None)
         self.listener.sendMessage(msg)
-        timer = threading.Timer(2.0, self.periodical_signal)
-        timer.start()
+        tick(2.0, self.periodical_signal)
 
     def register_driver_success(self, driver):
         value = {
@@ -520,13 +531,17 @@ class Application:
         self.listener = SparkConn(self.config['master_host'], self.config['master_port'])
         
         # set up periodical signal
-        timer = threading.Timer(2.0, self.periodical_signal)
-        timer.start()
+        tick(2.0, self.periodical_signal)
 
         # main loop
         while True:
             msg = self.listener.accept()
             self.dispensor(msg)
+        
+    def __del__(self):
+        global timer
+        if not timer:
+            timer.cancel()
 
 
 # instantiation
