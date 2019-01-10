@@ -128,6 +128,15 @@ class backendComm(threading.Thread):
                 stage.task_done[u['pidx']] = True
                 if stage.done:
                     stage.finish()
+                self.lis.sendMessage(self.context.wrap_msp(
+                    u['host'],
+                    u['port'],
+                    'task_finished_ack',
+                    {
+                        'rid' : u['rid'],
+                        'pidx' : u['pidx']
+                    }
+                ))
 
     def dispense(self, msg):
         if msg['type'] == 'fetch_info':
