@@ -191,13 +191,13 @@ class Application:
     #         None
     #     ))
     
-    # def inform_app_still_running(self, driver):
-    #     self.listener.sendMessage(self.wrap_msg(
-    #         driver.host,
-    #         driver.port,
-    #         'app_still_running',
-    #         None
-    #     ))
+    def inform_app_still_running(self, driver):
+        self.listener.sendMessage(self.wrap_msg(
+            driver.host,
+            driver.port,
+            'app_still_running',
+            None
+        ))
 
     # def kill_app_feedback(self, app):
     #     self.listener.sendMessage(self.wrap_msg(
@@ -221,11 +221,11 @@ class Application:
         return wrapped
 
     # # functional components
-    # def search_driver_by_id(self, id):
-    #     for d in self.drivers:
-    #         if d.driver_id == id:
-    #             return self.drivers.index(d)
-    #     return None
+    def search_driver_by_id(self, id):
+        for d in self.drivers:
+            if d.driver_id == id:
+                return self.drivers.index(d)
+        return None
     
     # def search_application_by_id(self, id):
     #     for a in self.apps:
@@ -414,6 +414,7 @@ class Application:
         new_driver = DriverUnit(driver['host'], driver['port'])
         self.drivers.append(new_driver)
         self.register_driver_success(new_driver)
+        self.logs.info('Driver registered. ID: %d/host: %s/port: %d' % (new_driver.driver_id, new_driver.host, new_driver.port))
         
     # def allocate_resource(self, req):
     #     d_idx = self.search_driver_by_id(req['driver_id'])
@@ -500,17 +501,17 @@ class Application:
     #         self.request_resource(int(k), asstable[k], self.drivers[d_idx].app_id)
     #     # self.inform_wait_allocation(self.drivers[d_idx])
 
-    # def kill_driver(self, did):
-    #     d_idx = self.search_driver_by_id(did)
-    #     if d_idx:
-    #         if self.drivers[d_idx].app_id:
-    #             self.logs.error('Application %d of driver %d is still running.' % (self.drivers[d_idx].app_id, did))
-    #             self.inform_app_still_running(self.drivers[d_idx])
-    #             return
-    #         self.logs.error('Driver %d is killed.' % (did))
-    #         self.drivers.remove(self.drivers[d_idx])
-    #     else:
-    #         self.logs.error('Driver %d does not exist.' % (did))
+    def kill_driver(self, did):
+        d_idx = self.search_driver_by_id(did)
+        if d_idx:
+            if self.drivers[d_idx].app_id:
+                self.logs.error('Application %d of driver %d is still running.' % (self.drivers[d_idx].app_id, did))
+                self.inform_app_still_running(self.drivers[d_idx])
+                return
+            self.logs.error('Driver %d is killed.' % (did))
+            self.drivers.remove(self.drivers[d_idx])
+        else:
+            self.logs.error('Driver %d does not exist.' % (did))
         
     # # message dispensor
     def dispensor(self, msg):
@@ -535,8 +536,8 @@ class Application:
             self.register_driver(msg['value'])
     #     elif msg['type'] == 'request_resource':
     #         self.allocate_resource(msg['value'])
-    #     elif msg['type'] == 'kill_driver':
-    #         self.kill_driver(msg['value'])
+        elif msg['type'] == 'kill_driver':
+            self.kill_driver(msg['value'])
 
     # main body
     def run(self):
