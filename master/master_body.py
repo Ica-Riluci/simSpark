@@ -78,16 +78,16 @@ class Application:
         self.listener.sendMessage(msg)
         tick(2.0, self.periodical_signal)
 
-    # def register_driver_success(self, driver):
-    #     value = {
-    #         'id' : driver.driver_id
-    #     }
-    #     self.listener.sendMessage(self.wrap_msg(
-    #         driver.host,
-    #         driver.port,
-    #         'register_driver_success',
-    #         value
-    #     ))
+    def register_driver_success(self, driver):
+        value = {
+            'id' : driver.driver_id
+        }
+        self.listener.sendMessage(self.wrap_msg(
+            driver.host,
+            driver.port,
+            'register_driver_success',
+            value
+        ))
 
     # def feedback_application(self, app):
     #     value = {
@@ -317,7 +317,7 @@ class Application:
 
     # # reaction to message
     def check_workers_heartbeat(self):
-        self.logs.info('The number of threads: %d' % len(threading.enumerate()))
+        # self.logs.info('The number of threads: %d' % len(threading.enumerate()))
         self.logs.info('Checking a worker list at a length of %d' % len(self.workers))
         # for worker in self.workers:
         #     if worker.alive:
@@ -410,10 +410,10 @@ class Application:
     #     eid_list = []
     #     self.kill_executors(executors)
 
-    # def register_driver(self, driver):
-    #     new_driver = DriverUnit(driver['host'], driver['port'])
-    #     self.drivers.append(new_driver)
-    #     self.register_driver_success(new_driver)
+    def register_driver(self, driver):
+        new_driver = DriverUnit(driver['host'], driver['port'])
+        self.drivers.append(new_driver)
+        self.register_driver_success(new_driver)
         
     # def allocate_resource(self, req):
     #     d_idx = self.search_driver_by_id(req['driver_id'])
@@ -531,8 +531,8 @@ class Application:
     #     elif msg['type'] == 'kill_executor':
     #         self.eliminate_executor(msg['value'])
     #     # msg from driver
-    #     elif msg['type'] == 'register_driver':
-    #         self.register_driver(msg['value'])
+        elif msg['type'] == 'register_driver':
+            self.register_driver(msg['value'])
     #     elif msg['type'] == 'request_resource':
     #         self.allocate_resource(msg['value'])
     #     elif msg['type'] == 'kill_driver':
@@ -556,8 +556,8 @@ class Application:
         
     def __del__(self):
         global timer
-        # if timer:
-        #     timer.cancel()
+        if timer:
+            timer.cancel()
 
 
 # instantiation
