@@ -128,6 +128,15 @@ class backendComm(threading.Thread):
                 stage.task_done[u['pidx']] = True
                 if stage.done:
                     stage.finish()
+                self.lis.sendMessage(self.context.wrap_msp(
+                    u['host'],
+                    u['port'],
+                    'task_finished_ack',
+                    {
+                        'rid' : u['rid'],
+                        'pidx' : u['pidx']
+                    }
+                ))
 
     def dispense(self, msg):
         if msg['type'] == 'fetch_info':
@@ -330,6 +339,8 @@ class simContext:
         if frommem:
             value = {
                 'appid' : self.app.app_id,
+                'host' : self.config['driver_host'],
+                'port' : self.config['driver_port'],
                 'rid' : rid,
                 'pidx' : pidx
             }
