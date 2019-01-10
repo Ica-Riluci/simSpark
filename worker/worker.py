@@ -11,6 +11,21 @@ sys.path.append('..')
 
 from publib.SparkConn import *
 
+global status_renew_timer
+status_renew_timer = None
+
+global timer
+timer = None
+
+def tick(i, func, *args, **kwargs):
+    global timer
+    if not timer:
+        timer.finished.wait(i)
+        timer.function(*args, **kwargs)
+    else:
+        timer = threading.Timer(i, func, *args, **kwargs)
+        timer.start()
+
 class appInfo:
     def __init__(self, id, host, port, worker):
         self.id = id
@@ -34,7 +49,6 @@ class workerBody:
         self.executors = []
         self.executors_status = []
         self.exeid = -1
-        self.connected = False
         self.id = -1
         self.appId = -1
         self.maxExectuorNum = 10
@@ -43,6 +57,11 @@ class workerBody:
         self.driver_listener = None
 
         self.appList = []
+
+    def __del__(self):
+        global timer
+        if not timer:
+            timer.cancel()
 
     # functions of Spark Context
     def getRdd(self, index, host, port):
@@ -157,7 +176,6 @@ class workerBody:
 
     # todo:need the worker to send a host and port
     def reg_succ_worker(self, value):
-        self.connected = True
         self.id = value['id']
         # initialize the fetch_port lock and the driver_listener
         self.fetchLock = threading.Lock()
@@ -173,41 +191,39 @@ class workerBody:
             self.logs.warning('Failed to read the right executor')
 
     def send_executor_status(self):
-        if self.connected:
-            renew_list = []
-            exelen = len(self.executors)
-            for e in range(0, exelen):
-                exe = self.executors[e]
-                if exe.status != self.executors_status[e].status:
-                    renew_list.append({
-                        'id': exe.id,
-                        'status': exe.status
-                    })
-                    self.executors_status[e].status = exe.status
-            if not(renew_list == []):
-                msg = {
-                    'id': self.id,
-                    'host': self.config['worker_host'],
-                    'port': self.config['worker_port'],
-                    'list': renew_list
-                }
-                wrappedmsg = self.wrap_msg(self.config['master_host'], self.config['master_port'], 'update_executors', msg)
-                self.listener.sendMessage(wrappedmsg)
-            # check if there is an executor is completed
-            eid_list = []
-            for nex in renew_list:
-                if nex.status == 'COMPLETED':
-                    eid_list.append(nex['id'])
-            if not(eid_list == []):
-                delmsg = {
-                    'host': self.config['worker_host'],
-                    'port': self.config['worker_port'],
-                    'eid': eid_list
-                }
-                wrapmsg = self.wrap_msg(self.config['master_host'], self.config['master_port'], 'kill_executor', delmsg)
-                self.listener.sendMessage(wrapmsg)
-        status_renew_timer = threading.Timer(2.0, self.send_executor_status)
-        status_renew_timer.start()
+        renew_list = []
+        exelen = len(self.executors)
+        for e in range(0, exelen):
+            exe = self.executors[e]
+            if exe.status != self.executors_status[e].status:
+                renew_list.append({
+                    'id': exe.id,
+                    'status': exe.status
+                })
+                self.executors_status[e].status = exe.status
+        if not(renew_list == []):
+            msg = {
+                'id': self.id,
+                'host': self.config['worker_host'],
+                'port': self.config['worker_port'],
+                'list': renew_list
+            }
+            wrappedmsg = self.wrap_msg(self.config['master_host'], self.config['master_port'], 'update_executors', msg)
+            self.listener.sendMessage(wrappedmsg)
+        # check if there is an executor is completed
+        eid_list = []
+        for nex in renew_list:
+            if nex.status == 'COMPLETED':
+                eid_list.append(nex['id'])
+        if not(eid_list == []):
+            delmsg = {
+                'host': self.config['worker_host'],
+                'port': self.config['worker_port'],
+                'eid': eid_list
+            }
+            wrapmsg = self.wrap_msg(self.config['master_host'], self.config['master_port'], 'kill_executor', delmsg)
+            self.listener.sendMessage(wrapmsg)
+        tick(2.0, self.send_executor_status)
 
     # todo
     def del_executor(self, value):
@@ -241,16 +257,14 @@ class workerBody:
             self.exeid -= 1
 
     def send_heartbeat(self):
-        if self.connected:
-            msg = {
-                    'id': self.id,
-                    'host': self.config['worker_host'],
-                    'port': self.config['worker_port'],
-                    'time': datetime.now()
-                }
-            wrapmsg = self.wrap_msg(self.master.host, self.master.port, 'worker_heartbeat', msg)
-            self.listener.sendMessage(wrapmsg)
-        pass
+        msg = {
+                'id': self.id,
+                'host': self.config['worker_host'],
+                'port': self.config['worker_port'],
+                'time': datetime.now()
+            }
+        wrapmsg = self.wrap_msg(self.master.host, self.master.port, 'worker_heartbeat', msg)
+        self.listener.sendMessage(wrapmsg)
 
     '''
     def cleanCatalog(self):
@@ -265,15 +279,12 @@ class workerBody:
         wrapped_msg = self.wrap_msg(self.config['master_host'], self.config['master_port'], 'register_worker', worker)
         # print wrapped_msg
         self.listener.sendMessage(wrapped_msg)
-        if self.connected == False:
-            reg_timer = threading.Timer(5.0, self.register_worker)
-            reg_timer.start()
+        tick(5.0, self.register_worker)
 
     def ghost_executor(self, value):
         pass
 
     def reregister(self):
-        self.connected = False
         self.register_worker()
 
     # todo open the thread pool to run the executors in parallel, still need to add port and host
@@ -344,18 +355,14 @@ class workerBody:
         self.listener = SparkConn(self.config['worker_host'], self.config['worker_port'])
 
         # a timer to set initial register
-        reg_timer = threading.Timer(5.0, self.register_worker)
-        reg_timer.start()
+        tick(5.0, self.register_worker)
         while True:
             msg = self.listener.accept()
             if msg['type'] == 'register_worker_success':
                 self.reg_succ_worker(msg['value'])
                 break
 
-        # a timer to send the status change within a period of time
-        status_renew_timer = threading.Timer(2.0, self.send_executor_status)
-        status_renew_timer.start()
-        # onStart
+        tick(2.0, self.send_executor_status)
 
         while True:
             msg = self.listener.accept()

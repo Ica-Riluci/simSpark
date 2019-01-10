@@ -325,7 +325,9 @@ class simContext:
         value = {
             'eid' : executor['executor_id'],
             'rid' : rid,
-            'pidx' : pidx
+            'pidx' : pidx,
+            'host' : self.config['driver_host'],
+            'port' : self.config['backend_port']
         }
         self.listener.sendMessage(self.wrap_msg(
             executor['host'],
