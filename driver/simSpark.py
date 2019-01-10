@@ -330,6 +330,8 @@ class simContext:
         if frommem:
             value = {
                 'appid' : self.app.app_id,
+                'host' : self.config['driver_host'],
+                'port' : self.config['driver_port'],
                 'rid' : rid,
                 'pidx' : pidx
             }
