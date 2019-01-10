@@ -317,6 +317,7 @@ class Application:
 
     # # reaction to message
     def check_workers_heartbeat(self):
+        self.logs.info('The number of threads: %d' % len(threading.enumerate()))
         self.logs.info('Checking a worker list at a length of %d' % len(self.workers))
         # for worker in self.workers:
         #     if worker.alive:
