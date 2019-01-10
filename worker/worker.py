@@ -76,7 +76,7 @@ class workerBody:
                 self.fetchLock.release()
                 return msg['value']
 
-    def fetch_data(self, pid, rddid, host, port):
+    def fetch_data(self, rddid, pid, host, port):
         self.fetchLock.acquire()
         msg = {
             'pidx': pid,
@@ -94,16 +94,28 @@ class workerBody:
                 return msg['value']
 
     # todo still need to confirm the interface
-    def send_result(self, value, pid, rddid, host, port):
+    def send_result(self, rddid, pid, host, port):
         self.fetchLock.acquire()
         msg = {
-            'pid': pid,
+            'host': self.config['worker_host'],
+            'port': self.config['worker_port'],
+            'pidx': pid,
             'rid': rddid,
-            'value': value
         }
-        wrapMsg = self.wrap_msg(host, port, '', msg)
+        wrapMsg = self.wrap_msg(host, port, 'task_finished', msg)
         self.driver_listener.sendMessage(wrapMsg)
         self.fetchLock.release()
+
+    def send_data_to_driver(self, value):
+        appid = value['appid']
+        rid = value['rid']
+        pidx = value['pidx']
+        dport = value['driver_port']
+        e = self.search_app_by_id(appid)
+        ctx = self.appList[e].context
+        result = ctx.get_partition_data(rid, pidx)
+        wrapmsg = self.wrap_msg(ctx.driverhost, dport, 'fetch_data_ack', result)
+        self.listener.sendMessage(wrapmsg)
 
     # without changed,need change after use
     def load_config(self):
@@ -252,7 +264,9 @@ class workerBody:
         appid = value['appid']
         host = value['host']
         port = value['port']
-        app = self.search_app_by_id(appid, host, port)
+        app = self.search_app_by_id(appid)
+        if not app:
+            self.add_app(appid, host, port)
         index = self.search_executor_by_id(eid)
         if index != None:
             self.executors[index].setId(rid, pid)
@@ -279,18 +293,21 @@ class workerBody:
                 return self.executors.index(e)
         return None
 
-    def search_app_by_id(self, id, host=None, port=None):
+    def search_app_by_id(self, id):
         for e in self.appList:
             if e.id == id:
                 return self.appList.index(e)
+        return None
+
+    def add_app(self, id, host, port):
         app = appInfo(id, host, port, self)
         self.appList.append(app)
-        return self.appList.index(app)
 
     def delete_app(self, value):
         id = value['appid']
         index = self.search_app_by_id(id)
-        del self.appList[index]
+        if index:
+            del self.appList[index]
 
     def process(self, msg):
         if msg['type'] == 'request_resource':
@@ -307,6 +324,8 @@ class workerBody:
             self.pending_task(msg['value'])
         elif msg['type'] == 'delete_app':
             self.delete_app(msg['value'])
+        elif msg['type'] == 'fetch_data':
+            self.send_data_to_driver(msg['value'])
 
     def run(self):
         self.listener = SparkConn(self.config['worker_host'], self.config['worker_port'])
