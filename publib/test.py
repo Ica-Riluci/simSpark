@@ -1,0 +1,37 @@
+from SparkConn import *
+import threading
+import time
+
+listener = SparkConn('127.0.0.1', 11111)
+sender = SparkConn('127.0.0.1', 11112)
+
+global timer
+timer = None
+
+def ptime():
+  sender.sendMessage(wrap_msg('127.0.0.1', 11111, 'test', time.ctime()))
+
+def tick()
+  global timer
+  if not timer:
+    timer.finished.wait(1)
+    timer.function()
+  else:
+    timer = threading.Timer(1, ptime)
+    timer.start()
+
+def wrap_msg(self, address, port, type, value):
+  raw = {
+    'type' : type,
+    'value' : value
+  }
+  wrapped = {
+    'host' : address,
+    'port' : port,
+    'value' : json.dumps(raw)
+  }
+  return wrapped
+
+while True:
+  msg = listener.accept()
+  print(msg['value'])
