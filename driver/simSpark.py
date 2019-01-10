@@ -329,6 +329,7 @@ class simContext:
             return None
         if frommem:
             value = {
+                'appid' : self.app.app_id,
                 'rid' : rid,
                 'pidx' : pidx
             }
