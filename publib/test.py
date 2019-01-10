@@ -14,7 +14,7 @@ def ptime():
 
 def tick():
   global timer
-  if not timer:
+  if timer:
     timer.finished.wait(1)
     timer.function()
   else:
