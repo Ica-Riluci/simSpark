@@ -10,8 +10,9 @@ timer = None
 
 def ptime():
   sender.sendMessage(wrap_msg('127.0.0.1', 11111, 'test', time.ctime()))
+  tick()
 
-def tick()
+def tick():
   global timer
   if not timer:
     timer.finished.wait(1)
@@ -32,6 +33,7 @@ def wrap_msg(self, address, port, type, value):
   }
   return wrapped
 
+tick()
 while True:
   msg = listener.accept()
   print(msg['value'])
