@@ -222,10 +222,10 @@ class Application:
 
     # # functional components
     def search_driver_by_id(self, did):
-        for d in self.drivers:
-            if d.driver_id == did:
+        for d in range(0, len(self.drivers)):
+            if d == did:
                 self.logs.info('Driver %d found' % (did))
-                return self.drivers.index(d)
+                return d
         return None
     
     # def search_application_by_id(self, id):
