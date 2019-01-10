@@ -197,6 +197,14 @@ class Application:
             None
         ))
 
+    def kill_app_feedback(self, app):
+        self.listener.sendMessage(self.wrap_msg(
+            app.host,
+            app.port,
+            'app_killed',
+            None
+        ))
+
     # wrap the message
     def wrap_msg(self, address, port, type, value):
         raw = {
@@ -337,6 +345,7 @@ class Application:
                     self.drivers[driver_idx].set_app_id()
             else:
                 self.logs.warning('None of the drivers is binded with application %d.' % (app['id']))
+            self.kill_app_feedback(self.apps[app_idx])
             self.apps.remove(self.apps[app_idx])
         else:
             self.logs.warning('Application %d does not exist.' % (app['id']))

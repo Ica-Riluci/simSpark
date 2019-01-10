@@ -30,6 +30,8 @@ class backendComm(threading.Thread):
     def __init__(self, ctx):
         threading.Thread.__init__(self)
         self.context = ctx
+        self.running = threading.Event()
+        self.running.set()
 
     def query_rdd(self, q):
         rdd = self.context.search_rdd_by_id(q['rid'])
@@ -137,9 +139,12 @@ class backendComm(threading.Thread):
 
     def run(self):
         self.lis = SparkConn(self.context.config['driver_host'], self.context.bport)
-        while True:
+        while self.running.is_set():
             msg = self.lis.accept()
             self.dispense(msg)
+
+    def collapse(self):
+        self.running.clear()
                 
 
 class simContext:
@@ -204,7 +209,31 @@ class simContext:
                 self.app.busy_executor = msg['value']['busy_executor']
                 break
         self.comm = backendComm(self)
-        self.comm.start()        
+        self.comm.start()
+
+    def __del__(self):
+        value = {
+            'id' : self.app.app_id,
+            'driver_id' : self.driver_id    
+        }
+        self.listener.sendMessage(self.wrap_msg(
+            self.config['master_host'],
+            self.config['master_port'],
+            'kill_app',
+            value
+        ))
+        while True:
+            msg = self.listener.accept()
+            if msg['type'] == 'app_killed':
+                break
+        value = self.driver_id
+        self.listener.sendMessage(self.wrap_msg(
+            self.config['master_host'],
+            self.config['master_port'],
+            'kill_driver',
+            value
+        ))
+        self.comm.collapse()
 
     def wrap_msg(self, address, port, type, value):
         raw = {
