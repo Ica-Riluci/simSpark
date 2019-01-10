@@ -10,7 +10,7 @@ global timer
 timer = None
 
 def ptime():
-  sender.sendMessage(wrap_msg('127.0.0.1', 11111, 'test', time.ctime()))
+  sender.sendMessage(wrap_msg('172.21.0.12', 11111, 'test', time.ctime()))
   tick()
 
 def tick():
