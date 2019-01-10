@@ -17,14 +17,14 @@ from publib.SparkConn import *
 global timer
 timer = None
 
-# def tick(i, func, *args, **kwargs):
-#     global timer
-#     if timer:
-#         timer.finished.wait(i)
-#         timer.function(*args, **kwargs)
-#     else:
-#         timer = threading.Timer(i, func, *args, **kwargs)
-#         timer.start()
+def tick(i, func, *args, **kwargs):
+    global timer
+    if timer:
+        timer.finished.wait(i)
+        timer.function(*args, **kwargs)
+    else:
+        timer = threading.Timer(i, func, *args, **kwargs)
+        timer.start()
 
 class Application:
     
@@ -40,43 +40,43 @@ class Application:
         self.logs.addHandler(fh)
 
         self.logs.info('simSpark master has been awaken.')
-        # self.config = self.load_config()
-        # if self.config['default_core'] < 1 and self.config['default_core'] != -1:
-        #     self.logs.critical('Default core(s) assigned must be positive.')
-        #     sys.exit(1)
-        # self.apps = []
-        # self.workers = []
-        # self.drivers = []
-        # self.executors = []
+        self.config = self.load_config()
+        if self.config['default_core'] < 1 and self.config['default_core'] != -1:
+            self.logs.critical('Default core(s) assigned must be positive.')
+            sys.exit(1)
+        self.apps = []
+        self.workers = []
+        self.drivers = []
+        self.executors = []
 
     # load configuration
-    # def load_config(self):
-    #     self.logs.info('<master_config.json> is about to be loaded.')
-    #     config = {
-    #         'master_host': '127.0.0.1',
-    #         'master_port' : 7077,
-    #         'webui_port' : 8080,
-    #         'worker_timeout' : 60000,
-    #         'spread_out' : True,
-    #         'default_core' : -1,
-    #         'reaper_iteration' : 15,
-    #         'executor_max_retries' : 10
-    #     }
-    #     try:
-    #         with open('master_config.json', 'r') as jsoninput:
-    #             inp = json.load(jsoninput)
-    #         for k in config.keys():
-    #             if k in inp.keys():
-    #                 config[k] = inp[k]
-    #     except IOError:
-    #         self.logs.warning('Failed to read configuration. Use default instead.')
-    #     return config
+    def load_config(self):
+        self.logs.info('<master_config.json> is about to be loaded.')
+        config = {
+            'master_host': '172.21.0.12',
+            'master_port' : 11111,
+            'webui_port' : 8080,
+            'worker_timeout' : 60000,
+            'spread_out' : True,
+            'default_core' : -1,
+            'reaper_iteration' : 15,
+            'executor_max_retries' : 10
+        }
+        try:
+            with open('master_config.json', 'r') as jsoninput:
+                inp = json.load(jsoninput)
+            for k in config.keys():
+                if k in inp.keys():
+                    config[k] = inp[k]
+        except IOError:
+            self.logs.warning('Failed to read configuration. Use default instead.')
+        return config
     
     # # signal sent
-    # def periodical_signal(self):
-    #     msg = self.wrap_msg(self.config['master_host'], self.config['master_port'], 'check_worker_TO', None)
-    #     self.listener.sendMessage(msg)
-    #     # tick(2.0, self.periodical_signal)
+    def periodical_signal(self):
+        msg = self.wrap_msg(self.config['master_host'], self.config['master_port'], 'check_worker_TO', None)
+        self.listener.sendMessage(msg)
+        tick(2.0, self.periodical_signal)
 
     # def register_driver_success(self, driver):
     #     value = {
@@ -208,17 +208,17 @@ class Application:
     #     ))
 
     # # wrap the message
-    # def wrap_msg(self, address, port, type, value):
-    #     raw = {
-    #         'type' : type,
-    #         'value' : value
-    #     }
-    #     wrapped = {
-    #         'host' : address,
-    #         'port' : port,
-    #         'value' : json.dumps(raw)
-    #     }
-    #     return wrapped
+    def wrap_msg(self, address, port, type, value):
+        raw = {
+            'type' : type,
+            'value' : value
+        }
+        wrapped = {
+            'host' : address,
+            'port' : port,
+            'value' : json.dumps(raw)
+        }
+        return wrapped
 
     # # functional components
     # def search_driver_by_id(self, id):
@@ -316,17 +316,18 @@ class Application:
 
 
     # # reaction to message
-    # def check_workers_heartbeat(self):
-    #     for worker in self.workers:
-    #         if worker.alive:
-    #             if worker.heartbeat_expired(self.config['worker_timeout']):
-    #                 self.logs.warning('Worker %d is out of contact.' % (worker.id))
-    #                 worker.alive = False
-    #         else:
-    #             if worker.dead(self.config['worker_timeout'], self.config['reap_iteration']):
-    #                 self.logs.warning('Worker %d will be buried for out of contact after several iterations.' % (worker.id))
-    #                 self.kill_executors(worker.executor_list)
-    #                 self.workers.remove(worker)
+    def check_workers_heartbeat(self):
+        self.logs.info('Checking a worker list at a length of %d' % len(self.workers))
+        # for worker in self.workers:
+        #     if worker.alive:
+        #         if worker.heartbeat_expired(self.config['worker_timeout']):
+        #             self.logs.warning('Worker %d is out of contact.' % (worker.id))
+        #             worker.alive = False
+        #     else:
+        #         if worker.dead(self.config['worker_timeout'], self.config['reap_iteration']):
+        #             self.logs.warning('Worker %d will be buried for out of contact after several iterations.' % (worker.id))
+        #             # self.kill_executors(worker.executor_list)
+        #             self.workers.remove(worker)
 
     # def register_application(self, app):
     #     self.logs.info('Request for registration of application %s received.' % (app['name']))
@@ -511,9 +512,9 @@ class Application:
     #         self.logs.error('Driver %d does not exist.' % (did))
         
     # # message dispensor
-    # def dispensor(self, msg):
-    #     if msg['type'] == 'check_worker_TO':
-    #         self.check_workers_heartbeat()
+    def dispensor(self, msg):
+        if msg['type'] == 'check_worker_TO':
+            self.check_workers_heartbeat()
     #     # msg from application
     #     elif msg['type'] == 'register_app':
     #         self.register_application(msg['value'])
@@ -539,18 +540,18 @@ class Application:
     # main body
     def run(self):
         # establish listener
-        # self.listener = SparkConn(self.config['master_host'], self.config['master_port'])
+        self.listener = SparkConn(self.config['master_host'], self.config['master_port'])
         
         # set up periodical signal
-        # tick(2.0, self.periodical_signal)
+        tick(2.0, self.periodical_signal)
 
         # main loop
         while True:
-            # msg = self.listener.accept()
-            # self.dispensor(msg)
-            time.sleep(1)
-            self.logs.info(time.ctime())
-            pass
+            msg = self.listener.accept()
+            self.dispensor(msg)
+            # time.sleep(1)
+            # self.logs.info(time.ctime())
+            # pass
         
     def __del__(self):
         global timer
