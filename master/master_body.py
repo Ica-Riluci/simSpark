@@ -221,9 +221,9 @@ class Application:
         return wrapped
 
     # # functional components
-    def search_driver_by_id(self, id):
+    def search_driver_by_id(self, did):
         for d in self.drivers:
-            if d.driver_id == id:
+            if d.driver_id == did:
                 return self.drivers.index(d)
         return None
     
