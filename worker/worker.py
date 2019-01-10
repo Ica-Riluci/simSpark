@@ -11,9 +11,6 @@ sys.path.append('..')
 
 from publib.SparkConn import *
 
-global status_renew_timer
-status_renew_timer = None
-
 global timer
 timer = None
 
@@ -63,46 +60,6 @@ class workerBody:
         if not timer:
             timer.cancel()
 
-    # functions of Spark Context
-    def getRdd(self, index, host, port):
-        for e in self.RDDList:
-            if e.id == index:
-                return e
-        rdd = self.fetch_info(index, host, port)
-        self.RDDList.append(rdd)
-        return rdd
-
-    def getPartition(self, pid, rdd, host, port):
-        for p in self.partitionList:
-            if p['pid'] == pid & p['rddid'] == rdd['id']:
-                return p.data
-        if rdd['dependencies'] == []:
-            data = self.fetch_data(pid, rdd['id'], host, port)
-            patitionRes = {
-                'pid': pid,
-                'rddid': rdd['id'],
-                'data': data
-            }
-            self.setPartition(pid, rdd, data)
-            self.partitionList.append(patitionRes)
-            return data
-        return None
-
-    def setPartition(self, pid, rddid, data):
-        isIn = False
-        for p in self.partitionList:
-            if p['pid'] == pid & p['rddid'] == rddid:
-                p['data'] = data
-                isIn = True
-        if not(isIn):
-            np = {
-                'pid': pid,
-                'rddid': rddid,
-                'data': data
-            }
-            self.partitionList.append(np)
-
-    # todo give a lock to this function
     def fetch_info(self, rddid, host, port):
         self.fetchLock.acquire()
         msg = {
@@ -119,7 +76,6 @@ class workerBody:
                 self.fetchLock.release()
                 return msg['value']
 
-    # todo give a lock to this function
     def fetch_data(self, pid, rddid, host, port):
         self.fetchLock.acquire()
         msg = {
