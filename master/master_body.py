@@ -502,6 +502,8 @@ class Application:
     #     # self.inform_wait_allocation(self.drivers[d_idx])
 
     def kill_driver(self, did):
+        for d in self.drivers:
+            self.logs.info('Driver status: Id: %d/host: %s/port: %d' % (d.driver_id, d.host, d.port))
         d_idx = self.search_driver_by_id(did)
         if d_idx:
             if self.drivers[d_idx].app_id:
