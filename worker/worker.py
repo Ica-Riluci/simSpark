@@ -198,7 +198,8 @@ class workerBody:
             if exe.status != self.executors_status[e].status:
                 renew_list.append({
                     'id': exe.id,
-                    'status': exe.status
+                    'status': exe.status,
+                    'app_id': exe.appid
                 })
                 self.executors_status[e].status = exe.status
         if not(renew_list == []):
@@ -263,7 +264,7 @@ class workerBody:
                 'port': self.config['worker_port'],
                 'time': datetime.now()
             }
-        wrapmsg = self.wrap_msg(self.master.host, self.master.port, 'worker_heartbeat', msg)
+        wrapmsg = self.wrap_msg(self.config['master_host'], self.config['master_port'], 'worker_heartbeat', msg)
         self.listener.sendMessage(wrapmsg)
 
     '''
