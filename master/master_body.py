@@ -172,7 +172,9 @@ class Application:
         w_idx = self.search_worker_by_id(wid)
         value = {
             'number' : num,
-            'app_id' : aid
+            'app_id' : aid,
+            'host' : self.apps[self.search_application_by_id(aid)].host,
+            'port' : self.apps[self.search_application_by_id(aid)].port
         }
         self.listener.sendMessage(self.wrap_msg(
             self.workers[w_idx].host,
@@ -273,6 +275,16 @@ class Application:
                         self.logs.warning('The application %d does not use executor %d.' % (self.executors[e_idx].app_id, e))
                 else:
                     self.logs.warning('The application %d does not exist.' % (self.executors[e_idx].app_id))
+                msg = {
+                    'eid' : e,
+                    'success' : True
+                }
+                self.listener.sendMessage(self.wrap_msg(
+                    self.executors[e_idx].host,
+                    self.executors[e_idx].port,
+                    'elimination_feedback',
+                    msg
+                ))
                 self.executors.remove(self.executors[e_idx])
             else:
                 self.logs.warning('The executor %d does not exist.' % (e))
@@ -394,17 +406,7 @@ class Application:
     def eliminate_executor(self, value):
         executors = value['eid']
         eid_list = []
-        for el in executors:
-            eid_list.append(el)
-        self.kill_executors(eid_list)
-        for e in executors:
-            e_idx = self.search_executor_by_id(e)
-            exe_info = {
-                'eid': e,
-                'host': value['host'],
-                'port': value['port']
-            }
-            self.feedback_executor_elimination(exe_info, e_idx)
+        self.kill_executors(executors)
 
     def register_driver(self, driver):
         new_driver = DriverUnit(driver['host'], driver['port'])
