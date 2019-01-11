@@ -240,9 +240,9 @@ class Application:
     #             return self.executors.index(e)
     #     return None
 
-    def search_worker_by_id(self, id):
+    def search_worker_by_id(self, wid):
         for w in range(0, len(self.workers)):
-            if self.workers[w].worker_id == id:
+            if self.workers[w].worker_id == wid:
                 return w
         return None
 
