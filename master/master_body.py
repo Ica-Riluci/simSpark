@@ -379,6 +379,7 @@ class Application:
     #         self.logs.warning('Application %d does not exist.' % (app['id']))
 
     def worker_heartbeat_ack(self, heartbeat):
+        heartbeat['time'] = datetime.strptime(heartbeat['time'], '%Y-%m-%d %H:%M:%S %f')
         worker_idx = self.search_worker_by_id(heartbeat['id'])
         if worker_idx != None:
             if self.workers[worker_idx].host == heartbeat['host']:
