@@ -223,7 +223,7 @@ class Application:
     # # functional components
     def search_driver_by_id(self, did):
         for d in range(0, len(self.drivers)):
-            if d == did:
+            if self.drivers[d].driver_id == did:
                 self.logs.info('Driver %d found' % (did))
                 return d
         return None
