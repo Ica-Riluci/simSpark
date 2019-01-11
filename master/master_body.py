@@ -544,8 +544,8 @@ class Application:
         # msg from application
         elif msg['type'] == 'register_app':
             self.register_application(msg['value'])
-    #     elif msg['type'] == 'kill_app':
-    #         self.kill_application(msg['value'])
+        elif msg['type'] == 'kill_app':
+            self.kill_application(msg['value'])
         # msg from worker
         elif msg['type'] == 'worker_heartbeat':
             self.worker_heartbeat_ack(msg['value'])
