@@ -320,16 +320,16 @@ class Application:
     def check_workers_heartbeat(self):
         # self.logs.info('The number of threads: %d' % len(threading.enumerate()))
         self.logs.info('Checking a worker list at a length of %d' % len(self.workers))
-        # for worker in self.workers:
-        #     if worker.alive:
-        #         if worker.heartbeat_expired(self.config['worker_timeout']):
-        #             self.logs.warning('Worker %d is out of contact.' % (worker.id))
-        #             worker.alive = False
-        #     else:
-        #         if worker.dead(self.config['worker_timeout'], self.config['reap_iteration']):
-        #             self.logs.warning('Worker %d will be buried for out of contact after several iterations.' % (worker.id))
-        #             # self.kill_executors(worker.executor_list)
-        #             self.workers.remove(worker)
+        for worker in self.workers:
+            if worker.alive:
+                if worker.heartbeat_expired(self.config['worker_timeout']):
+                    self.logs.warning('Worker %d is out of contact.' % (worker.id))
+                    worker.alive = False
+            else:
+                if worker.dead(self.config['worker_timeout'], self.config['reap_iteration']):
+                    self.logs.warning('Worker %d will be buried for out of contact after several iterations.' % (worker.id))
+                    # self.kill_executors(worker.executor_list)
+                    self.workers.remove(worker)
 
     def register_application(self, app):
         self.logs.info('Request for registration of application [%s] received.' % (app['name']))
