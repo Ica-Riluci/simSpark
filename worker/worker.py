@@ -72,6 +72,9 @@ class workerBody:
         global timer
         if timer:
             timer.cancel()
+        global heartbeat_timer
+        if heartbeat_timer:
+            heartbeat_timer.cancel()
 
     def fetch_info(self, rddid, host, port):
         self.fetchLock.acquire()
@@ -357,7 +360,7 @@ class workerBody:
         global timer
         timer.cancel()
         timer = None
-        tick(10.0, self.send_heartbeat)
+        heartbeat_tick(10.0, self.send_heartbeat)
         tick(2.0, self.send_executor_status)
 
         while True:
