@@ -111,43 +111,43 @@ class Application:
             None
         ))
 
-    # def feedback_executor(self, executor, oid):
-    #     value = {
-    #         'original' : oid,
-    #         'assigned' : executor.executor_id
-    #     }
-    #     self.listener.sendMessage(self.wrap_msg(
-    #         executor.host,
-    #         executor.port,
-    #         'register_executor_success',
-    #         value
-    #     ))
+    def feedback_executor(self, executor, oid):
+        value = {
+            'original' : oid,
+            'assigned' : executor.executor_id
+        }
+        self.listener.sendMessage(self.wrap_msg(
+            executor.host,
+            executor.port,
+            'register_executor_success',
+            value
+        ))
 
-    # def inform_application_ready(self, app):
-    #     value = []
-    #     for e in app.executor_list:
-    #         e_idx = self.search_executor_by_id(e)
-    #         value.append({
-    #             'executor_id' : e,
-    #             'host' : self.executors[e_idx].host,
-    #             'port' : self.executors[e_idx].port
-    #         })
-    #     self.listener.sendMessage(self.wrap_msg(
-    #         app.host,
-    #         app.port,
-    #         'resource_ready',
-    #         value
-    #     ))
+    def inform_application_ready(self, app):
+        value = []
+        for e in app.executor_list:
+            e_idx = self.search_executor_by_id(e)
+            value.append({
+                'executor_id' : e,
+                'host' : self.executors[e_idx].host,
+                'port' : self.executors[e_idx].port
+            })
+        self.listener.sendMessage(self.wrap_msg(
+            app.host,
+            app.port,
+            'resource_ready',
+            value
+        ))
 
-    # def feedback_ghost_executor(self, host, port, eid):
-    #     self.listener.sendMessage(self.wrap_msg(
-    #         host,
-    #         port,
-    #         'ghost_executor',
-    #         {
-    #             'eid':eid
-    #         }
-    #     ))
+    def feedback_ghost_executor(self, host, port, eid):
+        self.listener.sendMessage(self.wrap_msg(
+            host,
+            port,
+            'ghost_executor',
+            {
+                'eid':eid
+            }
+        ))
     
     # def feedback_executor_elimination(self, executor, e_idx):
     #     value = {
@@ -290,30 +290,30 @@ class Application:
             else:
                 self.logs.warning('The executor %d does not exist.' % (e))
 
-    # def check_application_ready(self, aid):
-    #     app_idx = self.search_application_by_id(aid)
-    #     if app_idx:
-    #         if self.apps[app_idx].status == 'WAIT':
-    #             if len(self.apps[app_idx].executor_list) >= self.apps[app_idx].executors_req:
-    #                 self.inform_application_ready(self.apps[app_idx])
-    #     else:
-    #         self.logs.error('Application %d does not exist.' % (aid))
+    def check_application_ready(self, aid):
+        app_idx = self.search_application_by_id(aid)
+        if app_idx != None:
+            if self.apps[app_idx].status == 'WAIT':
+                if len(self.apps[app_idx].executor_list) >= self.apps[app_idx].executors_req:
+                    self.inform_application_ready(self.apps[app_idx])
+        else:
+            self.logs.error('Application %d does not exist.' % (aid))
 
-    # def register_executor(self, address, port, wid, eid, aid):
-    #     worker_idx = self.search_worker_by_id(wid)
-    #     app_idx = self.search_application_by_id(aid)
-    #     if worker_idx:
-    #         if app_idx:
-    #             self.logs.info('New executor for application %d on worker %d is registered' % (aid, wid))
-    #             new_executor = ExecutorUnit(address, port, wid, aid)
-    #             self.workers[worker_idx].executor_list.append(new_executor)
-    #             self.apps[app_idx].executor_list.append(new_executor)
-    #             self.feedback_executor(new_executor, eid)
-    #             self.check_application_ready(aid)
-    #         else:
-    #             self.logs.error('Application %d does not exist.' % (aid))
-    #     else:
-    #         self.logs.error('Worker %d does not exists.' % (wid))
+    def register_executor(self, address, port, wid, eid, aid):
+        worker_idx = self.search_worker_by_id(wid)
+        app_idx = self.search_application_by_id(aid)
+        if worker_idx != None:
+            if app_idx != None:
+                self.logs.info('New executor for application %d on worker %d is registered' % (aid, wid))
+                new_executor = ExecutorUnit(address, port, wid, aid)
+                self.workers[worker_idx].executor_list.append(new_executor)
+                self.apps[app_idx].executor_list.append(new_executor)
+                self.feedback_executor(new_executor, eid)
+                self.check_application_ready(aid)
+            else:
+                self.logs.error('Application %d does not exist.' % (aid))
+        else:
+            self.logs.error('Worker %d does not exists.' % (wid))
 
 
     # reaction to message
@@ -412,21 +412,21 @@ class Application:
             self.workers.append(new_worker)
             self.feedback_worker(new_worker)
 
-    # def update_executors_of_worker(self, worker):
-    #     worker_idx = self.search_worker_by_id(worker['id'])
-    #     if worker_idx:
-    #         for executor in worker['list']:
-    #             if executor['id'] < 0:
-    #                 self.register_executor(worker['host'], worker['port'], worker['id'], executor['id'], executor['app_id'])
-    #             else:
-    #                 e_idx = self.search_executor_by_id(executor['id'])
-    #                 if e_idx:
-    #                     self.executors[e_idx].status = executor['status']
-    #                 else:
-    #                     self.logs.error('Executor %d does not exist.' % (executor['id']))
-    #                     self.feedback_ghost_executor(worker['host'], worker['port'], executor['id'])
-    #     else:
-    #         self.logs.error('Worker %d does not exists.' % (worker['id']))
+    def update_executors_of_worker(self, worker):
+        worker_idx = self.search_worker_by_id(worker['id'])
+        if worker_idx != None:
+            for executor in worker['list']:
+                if executor['id'] < 0:
+                    self.register_executor(worker['host'], worker['port'], worker['id'], executor['id'], executor['app_id'])
+                else:
+                    e_idx = self.search_executor_by_id(executor['id'])
+                    if e_idx != None:
+                        self.executors[e_idx].status = executor['status']
+                    else:
+                        self.logs.error('Executor %d does not exist.' % (executor['id']))
+                        self.feedback_ghost_executor(worker['host'], worker['port'], executor['id'])
+        else:
+            self.logs.error('Worker %d does not exists.' % (worker['id']))
 
     # def eliminate_executor(self, value):
     #     executors = value['eid']
@@ -551,8 +551,8 @@ class Application:
             self.worker_heartbeat_ack(msg['value'])
         elif msg['type'] == 'register_worker':
             self.register_worker(msg['value'])
-    #     elif msg['type'] == 'update_executors':
-    #         self.update_executors_of_worker(msg['value'])
+        elif msg['type'] == 'update_executors':
+            self.update_executors_of_worker(msg['value'])
     #     elif msg['type'] == 'kill_executor':
     #         self.eliminate_executor(msg['value'])
     #     # msg from driver
