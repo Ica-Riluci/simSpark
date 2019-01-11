@@ -382,7 +382,7 @@ class Application:
         worker_idx = self.search_worker_by_address(worker['host'])
         if worker_idx != None:
             self.logs.critical('Worker {%s} already exists.' % worker['host'])
-            self.sendMessage(self.wrap_msg(
+            self.listener.sendMessage(self.wrap_msg(
                 worker['host'],
                 worker['port'],
                 'register_worker_success',
