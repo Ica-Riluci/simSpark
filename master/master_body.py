@@ -242,6 +242,7 @@ class Application:
     def search_executor_by_id(self, eid):
         self.logs.info(str(self.executors))
         for e in range(0, len(self.executors)):
+            self.logs.info('Check executor %d' % e)
             if self.executors[e].executor_id == eid:
                 return e
         return None
