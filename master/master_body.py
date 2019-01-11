@@ -247,6 +247,7 @@ class Application:
             if self.executors[ex].executor_id == e_id:
                 self.logs.info('Found executor %d' % e_id)
                 return ex
+        self.logs.info('Find Nothing')
         return None
 
     def search_worker_by_id(self, wid):
