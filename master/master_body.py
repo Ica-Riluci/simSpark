@@ -240,7 +240,7 @@ class Application:
         for e in range(0, len(self.executors)):
             if self.executors[e].executor_id == eid:
                 return e
-        return Noneregister_app
+        return None
 
     def search_worker_by_id(self, wid):
         for w in range(0, len(self.workers)):
