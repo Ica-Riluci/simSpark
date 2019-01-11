@@ -244,6 +244,7 @@ class Application:
         for ex in range(0, len(self.executors)):
             self.logs.info('Check executor %d' % ex)
             self.logs.info('Executor ID: %d' % self.executors[ex].executor_id)
+            self.logs.info('type: %s value: %s' % (str(type(e_id)), str(e_id)))
             if self.executors[ex].executor_id == e_id:
                 self.logs.info('Found executor %d' % e_id)
                 return ex
