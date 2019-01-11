@@ -91,10 +91,10 @@ class Application:
 
     def feedback_application(self, app):
         value = {
-            'id' : app.id,
+            'id' : app.app_id,
             'executor_list' : app.executor_list
         }
-        self.logs.info('Feed update to Application %d at address %s through port %d' % (app.id, app.host, app.port))
+        self.logs.info('Feed update to Application %d at address %s through port %d' % (app.app_id, app.host, app.port))
         self.listener.sendMessage(self.wrap_msg(app.host, app.port, 'resource_update', value))
 
     def feedback_worker(self, worker):
