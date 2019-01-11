@@ -14,6 +14,17 @@ from publib.SparkConn import *
 global timer
 timer = None
 
+global heartbeat_timer
+heartbeat_timer = None
+
+def heartbeat_tick(i, func, *args, **kwargs):
+    global heartbeat_timer
+    if heartbeat_timer:
+        heartbeat_timer.finished.wait(i)
+        heartbeat_timer.function(*args, **kwargs)
+    else:
+        heartbeat_timer = threading.Timer(i, func, *args, **kwargs)
+        heartbeat_timer.start()
 
 def tick(i, func, *args, **kwargs):
     global timer
@@ -237,6 +248,7 @@ class workerBody:
             }
         wrapmsg = self.wrap_msg(self.config['master_host'], self.config['master_port'], 'worker_heartbeat', msg)
         self.listener.sendMessage(wrapmsg)
+        heartbeat_tick(10.0, self.send_heartbeat)
 
     '''
     def cleanCatalog(self):
@@ -346,7 +358,7 @@ class workerBody:
         global timer
         timer.cancel()
         timer = None
-
+        tick(10.0, self.send_heartbeat)
         tick(2.0, self.send_executor_status)
 
         while True:
