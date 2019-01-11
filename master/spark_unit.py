@@ -56,3 +56,6 @@ class WorkerUnit(SparkUnit):
 
     def awake(self):
         self.alive = True
+
+    def update_heartbeat(self, hb):
+        self.last_heartbeat = hb
