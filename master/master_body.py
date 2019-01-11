@@ -232,6 +232,7 @@ class Application:
         self.logs.info('Start check')
         for a in range(0, len(self.apps)):
             self.logs.info('Checking app %d' % a)
+            self.logs.info(str(self.apps[a].app_id))
             if self.apps[a].app_id == aid:
                 return a
         return None
