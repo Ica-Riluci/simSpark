@@ -416,6 +416,7 @@ class Application:
         self.drivers.append(new_driver)
         self.register_driver_success(new_driver)
         self.logs.info('Driver registered. ID: %d/host: %s/port: %d' % (new_driver.driver_id, new_driver.host, new_driver.port))
+        self.logs.info('The number of driver registered: %d' % len(self.drivers))
         
     # def allocate_resource(self, req):
     #     d_idx = self.search_driver_by_id(req['driver_id'])
