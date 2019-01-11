@@ -243,6 +243,7 @@ class Application:
         self.logs.info(str(self.executors))
         for e in range(0, len(self.executors)):
             self.logs.info('Check executor %d' % e)
+            self.logs.info('Executor ID: %d' % self.executors[e].executor_id)
             if self.executors[e].executor_id == eid:
                 return e
         return None
