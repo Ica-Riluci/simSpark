@@ -230,6 +230,7 @@ class Application:
     
     def search_application_by_id(self, aid):
         for a in range(0, len(self.apps)):
+            self.logs.info('Checking app %d' % a)
             if self.apps[a].app_id == aid:
                 return a
         return None
@@ -291,6 +292,7 @@ class Application:
                 self.logs.warning('The executor %d does not exist.' % (e))
 
     def check_application_ready(self, aid):
+        self.logs.info('Check app %d' % (aid))
         app_idx = self.search_application_by_id(aid)
         if app_idx != None:
             self.logs.info('App %d status: %s' % (aid, self.apps[app_idx].status))
