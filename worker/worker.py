@@ -14,19 +14,22 @@ from publib.SparkConn import *
 global timer
 timer = None
 
+
 def tick(i, func, *args, **kwargs):
     global timer
-    if not timer:
+    if timer:
         timer.finished.wait(i)
         timer.function(*args, **kwargs)
     else:
         timer = threading.Timer(i, func, *args, **kwargs)
         timer.start()
 
+
 class appInfo:
     def __init__(self, id, host, port, worker):
         self.id = id
         self.context = executor.sparkContext(id, worker, host, port)
+
 
 class workerBody:
 
@@ -57,7 +60,7 @@ class workerBody:
 
     def __del__(self):
         global timer
-        if not timer:
+        if timer:
             timer.cancel()
 
     def fetch_info(self, rddid, host, port):
@@ -288,15 +291,15 @@ class workerBody:
         return wrapped
 
     def search_executor_by_id(self, id):
-        for e in self.executors:
-            if e.executor_id == id:
-                return self.executors.index(e)
+        for e in range(0, len(self.executors)):
+            if self.executors[e].executor_id == id:
+                return e
         return None
 
     def search_app_by_id(self, id):
-        for e in self.appList:
-            if e.id == id:
-                return self.appList.index(e)
+        for e in range(0, len(self.appList)):
+            if self.appList[e].id == id:
+                return e
         return None
 
     def add_app(self, id, host, port):
