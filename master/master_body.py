@@ -332,7 +332,7 @@ class Application:
         #             self.workers.remove(worker)
 
     def register_application(self, app):
-        self.logs.info('Request for registration of application %s received.' % (app['name']))
+        self.logs.info('Request for registration of application [%s] received.' % (app['name']))
         driver_idx = self.search_driver_by_id(app['did'])
         if driver_idx != None:
             if self.drivers[driver_idx].app_id:
@@ -346,7 +346,8 @@ class Application:
                 return
             new_app = ApplicationUnit(app['host'], app['port'], app['name'], app['did'])
             self.apps.append(new_app)
-            self.logs.info('Application %s is binded to driver %d using id %d.' % (app['name'], app['did'], new_app.app_id))
+            self.drivers[driver_idx].app_id == new_app.app_id
+            self.logs.info('Application [%s] is binded to driver %d using id %d.' % (app['name'], app['did'], new_app.app_id))
             self.feedback_application(new_app)
         else:
             self.logs.critical('Driver %d does not exist.' % (app['did']))
