@@ -56,7 +56,7 @@ class Application:
             'master_host': '172.21.0.12',
             'master_port' : 11111,
             'webui_port' : 8080,
-            'worker_timeout' : 60000,
+            'worker_timeout' : 6000,
             'spread_out' : True,
             'default_core' : -1,
             'reaper_iteration' : 15,
