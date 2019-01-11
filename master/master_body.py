@@ -385,6 +385,7 @@ class Application:
                 if not self.workers[worker_idx].alive:
                     self.logs.info('Worker %d is awaken.' % (heartbeat['id']))
                     self.workers[worker_idx].awake()
+                self.logs.info('Worker %d last heartbeat : %s, latest : %s' % (heartbeat['id'], str(self.workers[worker_idx].last_heartbeat), str(heartbeat['time'])))
                 self.workers[worker_idx].update_heartbeat(heartbeat['time'])
             else:
                 self.logs.error('Worker %d information does not match with the latest heartbeat.' % (heartbeat['id']))
