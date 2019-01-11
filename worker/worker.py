@@ -288,15 +288,15 @@ class workerBody:
         return wrapped
 
     def search_executor_by_id(self, id):
-        for e in self.executors:
-            if e.executor_id == id:
-                return self.executors.index(e)
+        for e in range(0, len(self.executors)):
+            if self.executors[e].executor_id == id:
+                return e
         return None
 
     def search_app_by_id(self, id):
-        for e in self.appList:
-            if e.id == id:
-                return self.appList.index(e)
+        for e in range(0, len(self.appList)):
+            if self.appList[e].id == id:
+                return e
         return None
 
     def add_app(self, id, host, port):
