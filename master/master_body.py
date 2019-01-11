@@ -125,6 +125,7 @@ class Application:
 
     def inform_application_ready(self, app):
         value = []
+        self.logs.info('executor list: %s' % str(app.executor_list))
         for e in app.executor_list:
             e_idx = self.search_executor_by_id(e)
             value.append({
@@ -132,6 +133,7 @@ class Application:
                 'host' : self.executors[e_idx].host,
                 'port' : self.executors[e_idx].port
             })
+        self.logs.info(str(value))
         self.listener.sendMessage(self.wrap_msg(
             app.host,
             app.port,
