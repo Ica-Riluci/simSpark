@@ -240,7 +240,7 @@ class Application:
         for e in range(0, len(self.executors)):
             if self.executors[e].executor_id == eid:
                 return e
-        return None
+        return Noneregister_app
 
     def search_worker_by_id(self, wid):
         for w in range(0, len(self.workers)):
@@ -313,9 +313,9 @@ class Application:
                 new_executor = ExecutorUnit(address, port, wid, aid)
                 self.workers[worker_idx].executor_list.append(new_executor)
                 self.apps[app_idx].executor_list.append(new_executor)
-                # self.logs.info('Feedback to %s for executor %d' % (new_executor.host, new_executor.executor_id))
+                self.logs.info('Feedback to %s for executor %d' % (new_executor.host, new_executor.executor_id))
                 self.feedback_executor(new_executor, eid)
-                # self.logs.info('Check app %d' % (aid))
+                self.logs.info('Check app %d' % (aid))
                 self.check_application_ready(aid)
             else:
                 self.logs.error('Application %d does not exist.' % (aid))
