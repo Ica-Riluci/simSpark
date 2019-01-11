@@ -32,7 +32,7 @@ def wrap_msg(address, port, type, value):
     'port' : port,
     'value' : json.dumps(raw)
   }
-  return wrapped
+  return wrapped  
 
 tick()
 while True:
