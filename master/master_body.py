@@ -316,6 +316,7 @@ class Application:
             if app_idx != None:
                 self.logs.info('New executor for application %d on worker %d is registered' % (aid, wid))
                 new_executor = ExecutorUnit(address, port, wid, aid)
+                self.executors.append(new_executor)
                 self.workers[worker_idx].executor_list.append(new_executor)
                 self.apps[app_idx].executor_list.append(new_executor)
                 self.logs.info('Feedback to %s for executor %d' % (new_executor.host, new_executor.executor_id))
