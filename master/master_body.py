@@ -300,6 +300,7 @@ class Application:
             self.logs.error('Application %d does not exist.' % (aid))
 
     def register_executor(self, address, port, wid, eid, aid):
+        self.logs.info('Executor from worker %d for app %d requests registration.' % (wid, aid))
         worker_idx = self.search_worker_by_id(wid)
         app_idx = self.search_application_by_id(aid)
         if worker_idx != None:
