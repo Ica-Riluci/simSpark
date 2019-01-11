@@ -508,7 +508,7 @@ class Application:
             self.logs.info('Driver status: Id: %d/host: %s/port: %d' % (d.driver_id, d.host, d.port))
         d_idx = self.search_driver_by_id(did)
         self.logs.info(str(d_idx))
-        if d_idx:
+        if d_idx != None:
             if self.drivers[d_idx].app_id:
                 self.logs.error('Application %d of driver %d is still running.' % (self.drivers[d_idx].app_id, did))
                 self.inform_app_still_running(self.drivers[d_idx])
