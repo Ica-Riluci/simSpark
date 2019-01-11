@@ -245,7 +245,7 @@ class Application:
             self.logs.info('Check executor %d' % ex)
             self.logs.info('Executor ID: %d' % self.executors[ex].executor_id)
             if self.executors[ex].executor_id == e_id:
-                self.log.info('Found executor %d' % e_id)
+                self.logs.info('Found executor %d' % e_id)
                 return ex
         return None
 
