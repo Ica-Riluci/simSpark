@@ -346,7 +346,7 @@ class Application:
                 return
             new_app = ApplicationUnit(app['host'], app['port'], app['name'], app['did'])
             self.apps.append(new_app)
-            self.drivers[driver_idx].app_id == new_app.app_id
+            self.drivers[driver_idx].app_id = new_app.app_id
             self.logs.info('Application [%s] is binded to driver %d using id %d.' % (app['name'], app['did'], new_app.app_id))
             self.feedback_application(new_app)
         else:
