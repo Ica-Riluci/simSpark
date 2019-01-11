@@ -187,7 +187,7 @@ class workerBody:
         for nex in renew_list:
             if nex.status == 'COMPLETED':
                 eid_list.append(nex['id'])
-        if not(eid_list == []):
+        if not(eid_list == None):
             delmsg = {
                 'host': self.config['worker_host'],
                 'port': self.config['worker_port'],
@@ -233,7 +233,7 @@ class workerBody:
                 'id': self.id,
                 'host': self.config['worker_host'],
                 'port': self.config['worker_port'],
-                'time': datetime.now()
+                'time': datetime.now().strftime('%Y-%m-%d %H:%M:%S %f')
             }
         wrapmsg = self.wrap_msg(self.config['master_host'], self.config['master_port'], 'worker_heartbeat', msg)
         self.listener.sendMessage(wrapmsg)
