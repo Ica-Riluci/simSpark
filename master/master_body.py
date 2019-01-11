@@ -127,11 +127,10 @@ class Application:
         value = []
         self.logs.info('executor list: %s' % str(app.executor_list))
         for e in app.executor_list:
-            e_idx = self.search_executor_by_id(e)
             value.append({
-                'executor_id' : e,
-                'host' : self.executors[e_idx].host,
-                'port' : self.executors[e_idx].port
+                'executor_id' : e.executor_id,
+                'host' : e.host,
+                'port' : e.port
             })
         self.logs.info(str(value))
         self.listener.sendMessage(self.wrap_msg(
