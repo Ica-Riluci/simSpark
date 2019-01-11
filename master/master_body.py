@@ -293,6 +293,7 @@ class Application:
     def check_application_ready(self, aid):
         app_idx = self.search_application_by_id(aid)
         if app_idx != None:
+            self.logs.info('App %d status: %s' % (aid, self.apps[app_idx].status))
             if self.apps[app_idx].status == 'WAIT':
                 if len(self.apps[app_idx].executor_list) >= self.apps[app_idx].executors_req:
                     self.inform_application_ready(self.apps[app_idx])
@@ -309,9 +310,9 @@ class Application:
                 new_executor = ExecutorUnit(address, port, wid, aid)
                 self.workers[worker_idx].executor_list.append(new_executor)
                 self.apps[app_idx].executor_list.append(new_executor)
-                self.logs.info('Feedback to %s for executor %d' % (new_executor.host, new_executor.executor_id))
+                # self.logs.info('Feedback to %s for executor %d' % (new_executor.host, new_executor.executor_id))
                 self.feedback_executor(new_executor, eid)
-                self.logs.info('Check app %d' % (aid))
+                # self.logs.info('Check app %d' % (aid))
                 self.check_application_ready(aid)
             else:
                 self.logs.error('Application %d does not exist.' % (aid))
