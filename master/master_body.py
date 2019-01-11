@@ -229,6 +229,7 @@ class Application:
         return None
     
     def search_application_by_id(self, aid):
+        self.logs.info('Start check')
         for a in range(0, len(self.apps)):
             self.logs.info('Checking app %d' % a)
             if self.apps[a].app_id == aid:
