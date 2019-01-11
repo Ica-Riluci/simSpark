@@ -385,7 +385,7 @@ class Application:
 
     def register_worker(self, worker):
         worker_idx = self.search_worker_by_address(worker['host'])
-        if worker_idx:
+        if worker_idx != None:
             self.logs.critical('Worker {%s} already exists.' % worker['host'])
             self.feedback_worker(None)
             return
