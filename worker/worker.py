@@ -14,6 +14,17 @@ from publib.SparkConn import *
 global timer
 timer = None
 
+global heartbeat_timer
+heartbeat_timer = None
+
+def heartbeat_tick(i, func, *args, **kwargs):
+    global heartbeat_timer
+    if heartbeat_timer:
+        heartbeat_timer.finished.wait(i)
+        heartbeat_timer.function(*args, **kwargs)
+    else:
+        heartbeat_timer = threading.Timer(i, func, *args, **kwargs)
+        heartbeat_timer.start()
 
 def tick(i, func, *args, **kwargs):
     global timer
@@ -26,9 +37,9 @@ def tick(i, func, *args, **kwargs):
 
 
 class appInfo:
-    def __init__(self, id, host, port, worker):
-        self.id = id
-        self.context = executor.sparkContext(id, worker, host, port)
+    def __init__(self, appid, host, port, worker):
+        self.appid = appid
+        self.context = executor.sparkContext(appid, worker, host, port)
 
 
 class workerBody:
@@ -49,8 +60,7 @@ class workerBody:
         self.executors = []
         self.executors_status = []
         self.exeid = -1
-        self.id = -1
-        self.appId = -1
+        self.workerid = -1
         self.maxExectuorNum = 10
         self.fetchLock = None
         self.listener = None
@@ -62,6 +72,9 @@ class workerBody:
         global timer
         if timer:
             timer.cancel()
+        global heartbeat_timer
+        if heartbeat_timer:
+            heartbeat_timer.cancel()
 
     def fetch_info(self, rddid, host, port):
         self.fetchLock.acquire()
@@ -147,7 +160,7 @@ class workerBody:
 
     # todo:need the worker to send a host and port
     def reg_succ_worker(self, value):
-        self.id = value['id']
+        self.workerid = value['id']
         # initialize the fetch_port lock and the driver_listener
         self.fetchLock = threading.Lock()
         self.driver_listener = SparkConn(self.config['worker_host'], self.config['fetch_port'])
@@ -156,7 +169,7 @@ class workerBody:
         oid = value['original']
         e = self.search_executor_by_id(oid)
         if e:
-            self.executors[e].id = value['assigned']
+            self.executors[e].eid = value['assigned']
             self.executors[e].status = 'ALIVE'
         else:
             self.logs.warning('Failed to read the right executor')
@@ -175,7 +188,7 @@ class workerBody:
                 self.executors_status[e].status = exe.status
         if not(renew_list == []):
             msg = {
-                'id': self.id,
+                'id': self.workerid,
                 'host': self.config['worker_host'],
                 'port': self.config['worker_port'],
                 'list': renew_list
@@ -200,8 +213,8 @@ class workerBody:
     # todo
     def del_executor(self, value):
         if value['success']:
-            id = value['eid']
-            pos = self.search_executor_by_id(id)
+            eid = value['eid']
+            pos = self.search_executor_by_id(eid)
             del self.executors[pos]
             del self.executors_status[pos]
 
@@ -222,7 +235,7 @@ class workerBody:
             }
             elist.append(idmsg)
             msg = {
-                'id': self.id,
+                'id': self.workerid,
                 'list': elist
             }
             wrapmsg = self.wrap_msg(self.config['master_host'], self.config['master_port'], 'update_executors', msg)
@@ -230,13 +243,14 @@ class workerBody:
 
     def send_heartbeat(self):
         msg = {
-                'id': self.id,
+                'id': self.workerid,
                 'host': self.config['worker_host'],
                 'port': self.config['worker_port'],
                 'time': datetime.now().strftime('%Y-%m-%d %H:%M:%S %f')
             }
         wrapmsg = self.wrap_msg(self.config['master_host'], self.config['master_port'], 'worker_heartbeat', msg)
         self.listener.sendMessage(wrapmsg)
+        heartbeat_tick(10.0, self.send_heartbeat)
 
     '''
     def cleanCatalog(self):
@@ -290,25 +304,25 @@ class workerBody:
         }
         return wrapped
 
-    def search_executor_by_id(self, id):
+    def search_executor_by_id(self, eid):
         for e in range(0, len(self.executors)):
-            if self.executors[e].executor_id == id:
+            if self.executors[e].executor_id == eid:
                 return e
         return None
 
-    def search_app_by_id(self, id):
+    def search_app_by_id(self, appid):
         for e in range(0, len(self.appList)):
-            if self.appList[e].id == id:
+            if self.appList[e].appid == appid:
                 return e
         return None
 
-    def add_app(self, id, host, port):
-        app = appInfo(id, host, port, self)
+    def add_app(self, appid, host, port):
+        app = appInfo(appid, host, port, self)
         self.appList.append(app)
 
     def delete_app(self, value):
-        id = value['appid']
-        index = self.search_app_by_id(id)
+        appid = value['appid']
+        index = self.search_app_by_id(appid)
         if index:
             del self.appList[index]
 
@@ -346,7 +360,7 @@ class workerBody:
         global timer
         timer.cancel()
         timer = None
-
+        heartbeat_tick(10.0, self.send_heartbeat)
         tick(2.0, self.send_executor_status)
 
         while True:
