@@ -309,7 +309,9 @@ class Application:
                 new_executor = ExecutorUnit(address, port, wid, aid)
                 self.workers[worker_idx].executor_list.append(new_executor)
                 self.apps[app_idx].executor_list.append(new_executor)
+                self.logs.info('Feedback to %s for executor %d' % (new_executor.host, new_executor.executor_id))
                 self.feedback_executor(new_executor, eid)
+                self.logs.info('Check app %d' % (aid))
                 self.check_application_ready(aid)
             else:
                 self.logs.error('Application %d does not exist.' % (aid))
