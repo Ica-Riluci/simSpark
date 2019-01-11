@@ -96,11 +96,11 @@ class Application:
     #     }
     #     self.listener.sendMessage(self.wrap_msg(app.host, app.port, 'resource_update', value))
 
-    # def feedback_worker(self, worker):
-    #     value = {
-    #         'id' : worker.worker_id
-    #     }
-    #     self.listener.sendMessage(self.wrap_msg(worker.host, worker.port, 'register_worker_success', value))
+    def feedback_worker(self, worker):
+        value = {
+            'id' : worker.worker_id
+        }
+        self.listener.sendMessage(self.wrap_msg(worker.host, worker.port, 'register_worker_success', value))
 
     # def awake_ghost_worker(self, ghost_heartbeat):
     #     self.listener.sendMessage(self.wrap_msg(
@@ -224,7 +224,6 @@ class Application:
     def search_driver_by_id(self, did):
         for d in range(0, len(self.drivers)):
             if self.drivers[d].driver_id == did:
-                self.logs.info('Driver %d found' % (did))
                 return d
         return None
     
@@ -246,11 +245,11 @@ class Application:
     #             return self.workers.index(w)
     #     return None
 
-    # def search_worker_by_address(self, address):
-    #     for w in self.workers:
-    #         if w.host == address:
-    #             return self.workers.index(w)
-    #     return None
+    def search_worker_by_address(self, address):
+        for w in range(0, len(self.workers)):
+            if self.workers[w].host == address:
+                return w
+        return None
 
     # def kill_executors(self, eliminate_list):
     #     for e in eliminate_list:
@@ -379,16 +378,16 @@ class Application:
     #         self.logs.warning('Ghost worker {%s} revives.' % (heartbeat['host']))
     #         self.awake_ghost_worker(heartbeat)            
 
-    # def register_worker(self, worker):
-    #     worker_idx = self.search_worker_by_address(worker['host'])
-    #     if worker_idx:
-    #         self.logs.critical('Worker {%s} already exists.' % worker['host'])
-    #         return
-    #     else:
-    #         new_worker = WorkerUnit(worker['host'], worker['port'])
-    #         self.logs.info('Worker {%s} registers as worker %d.' % (worker['host'], new_worker.worker_id))
-    #         self.workers.append(new_worker)
-    #         self.feedback_worker(new_worker)
+    def register_worker(self, worker):
+        worker_idx = self.search_worker_by_address(worker['host'])
+        if worker_idx:
+            self.logs.critical('Worker {%s} already exists.' % worker['host'])
+            return
+        else:
+            new_worker = WorkerUnit(worker['host'], worker['port'])
+            self.logs.info('Worker {%s} registers as worker %d.' % (worker['host'], new_worker.worker_id))
+            self.workers.append(new_worker)
+            self.feedback_worker(new_worker)
 
     # def update_executors_of_worker(self, worker):
     #     worker_idx = self.search_worker_by_id(worker['id'])
@@ -416,7 +415,6 @@ class Application:
         self.drivers.append(new_driver)
         self.register_driver_success(new_driver)
         self.logs.info('Driver registered. ID: %d/host: %s/port: %d' % (new_driver.driver_id, new_driver.host, new_driver.port))
-        self.logs.info('The number of driver registered: %d' % len(self.drivers))
         
     # def allocate_resource(self, req):
     #     d_idx = self.search_driver_by_id(req['driver_id'])
@@ -504,8 +502,6 @@ class Application:
     #     # self.inform_wait_allocation(self.drivers[d_idx])
 
     def kill_driver(self, did):
-        for d in self.drivers:
-            self.logs.info('Driver status: Id: %d/host: %s/port: %d' % (d.driver_id, d.host, d.port))
         d_idx = self.search_driver_by_id(did)
         self.logs.info(str(d_idx))
         if d_idx != None:
@@ -530,8 +526,8 @@ class Application:
     #     # msg from worker
     #     elif msg['type'] == 'worker_heartbeat':
     #         self.worker_heartbeat_ack(msg['value'])
-    #     elif msg['type'] == 'register_worker':
-    #         self.register_worker(msg['value'])
+        elif msg['type'] == 'register_worker':
+            self.register_worker(msg['value'])
     #     elif msg['type'] == 'update_executors':
     #         self.update_executors_of_worker(msg['value'])
     #     elif msg['type'] == 'kill_executor':
