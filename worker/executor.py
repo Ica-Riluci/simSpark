@@ -2,8 +2,8 @@ import time
 import threading
 
 class executor(threading.Thread):
-    def __init__(self, id, appid, worker):
-        self.id = id
+    def __init__(self, eid, appid, worker):
+        self.eid = eid
         self.appid = appid
         self.status = 'WAIT'
         self.worker = worker
@@ -67,13 +67,13 @@ class sparkContext(object):
         '''
         type = rddStatus['rdd_type']
         if type == self.NORMAL_RDD:
-            rdd = simRDD(self)
+            rdd = simRDD(self, rddid)
         elif type == self.MAP_RDD:
-            rdd = mappedRDD(self, rddStatus['dependencies'], rddStatus['part_len'], rddStatus['fun'])
+            rdd = mappedRDD(self, rddid, rddStatus['dependencies'], rddStatus['part_len'], rddStatus['fun'])
         elif type == self.FLATMAP_RDD:
             pass
         elif type == self.FILTER_RDD:
-            rdd = filterRDD(self, rddStatus['dependencies'], rddStatus['part_len'], rddStatus['fun'])
+            rdd = filterRDD(self, rddid, rddStatus['dependencies'], rddStatus['part_len'], rddStatus['fun'])
 
         self.RDDList.append(rdd)
         return rdd
@@ -93,17 +93,17 @@ class sparkContext(object):
 
     def searchRdd(self, rddid):
         for e in self.RDDList:
-            if e.id == rddid:
+            if e.rid == rddid:
                 return e
         rdd = self.getRdd(rddid)
         return rdd
 
-    def searchPartition(self, rddid, pid):
-        for e in self.partitionList:
-            if e.id == rddid & e.pid == pid:
-                return e
-        rdd = self.getPartition(rddid, pid)
-        return rdd
+    # def searchPartition(self, rddid, pid):
+    #     for e in self.partitionList:
+    #         if e.id == rddid & e.pid == pid:
+    #             return e
+    #     rdd = self.getPartition(rddid, pid)
+    #     return rdd
 
     def sendResult(self, rddid, pid):
         self.worker.send_result(rddid, pid, self.driverhost, self.driverport)
@@ -127,7 +127,8 @@ class simRDD:
     BUILDIN = 0
     FREESOURCE = 1
 
-    def __init__(self, ctx, dep=[], part=[], s_lvl=STORE_NONE):
+    def __init__(self, rid, ctx, dep=[], part=[], s_lvl=STORE_NONE):
+        self.rid = rid
         self.context = ctx
         self.dependencies = dep
         self.partitions = part
@@ -172,8 +173,8 @@ class simRDD:
         return []
 
 class mappedRDD(simRDD):
-    def __init__(self, ctx, dep, part, fun, ftype=simRDD.FREESOURCE, s_lvl=simRDD.STORE_NONE):
-        super(mappedRDD, self).__init__(ctx, dep, part, s_lvl)
+    def __init__(self, rid, ctx, dep, part, fun, ftype=simRDD.FREESOURCE, s_lvl=simRDD.STORE_NONE):
+        super(mappedRDD, self).__init__(rid, ctx, dep, part, s_lvl)
         self.fun = fun
         self.funtype = ftype
 
@@ -196,8 +197,8 @@ class mappedRDD(simRDD):
         return x
 
 class flatMappedRDD(simRDD):
-    def __init__(self, ctx, dep, part, fun, ftype=simRDD.FREESOURCE, s_lvl=simRDD.STORE_NONE):
-        super(flatMappedRDD, self).__init__(ctx, dep, part, s_lvl)
+    def __init__(self, rid, ctx, dep, part, fun, ftype=simRDD.FREESOURCE, s_lvl=simRDD.STORE_NONE):
+        super(flatMappedRDD, self).__init__(rid, ctx, dep, part, s_lvl)
         self.fun = fun
         self.funtype = ftype
 
@@ -209,8 +210,8 @@ class flatMappedRDD(simRDD):
         return self._1on1_dependencies(part)
 
 class filterRDD(simRDD):
-    def __init__(self, ctx, dep, part, fun, ftype=simRDD.FREESOURCE, s_lvl=simRDD.STORE_NONE):
-        super(filterRDD, self).__init__(ctx, dep, part, s_lvl)
+    def __init__(self, rid, ctx, dep, part, fun, ftype=simRDD.FREESOURCE, s_lvl=simRDD.STORE_NONE):
+        super(filterRDD, self).__init__(rid, ctx, dep, part, s_lvl)
         self.fun = fun
         self.funtype = ftype
 
