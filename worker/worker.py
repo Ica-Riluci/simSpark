@@ -337,14 +337,22 @@ class workerBody:
         tick(5.0, self.register_worker)
         while True:
             msg = self.listener.accept()
+            self.logs.info('Receive a regmsg:{%s}' % str(msg))
             if msg['type'] == 'register_worker_success':
                 self.reg_succ_worker(msg['value'])
+                self.logs.info('register successed.')
                 break
+        self.logs.info('Start the main process')
+        global timer
+        timer.cancel()
+        timer = None
 
         tick(2.0, self.send_executor_status)
 
         while True:
             msg = self.listener.accept()
+            self.logs.info('Receive a msg:{%s}' % str(msg))
+            self.logs.info('Its value is:{%s}' % str(msg['value']))
             # print str(msg)
             # print str(msg['value'])
             self.process(msg)
