@@ -239,13 +239,14 @@ class Application:
                 return a
         return None
 
-    def search_executor_by_id(self, eid):
+    def search_executor_by_id(self, e_id):
         self.logs.info(str(self.executors))
-        for e in range(0, len(self.executors)):
-            self.logs.info('Check executor %d' % e)
-            self.logs.info('Executor ID: %d' % self.executors[e].executor_id)
-            if self.executors[e].executor_id == eid:
-                return e
+        for ex in range(0, len(self.executors)):
+            self.logs.info('Check executor %d' % ex)
+            self.logs.info('Executor ID: %d' % self.executors[ex].executor_id)
+            if self.executors[ex].executor_id == e_id:
+                self.log.info('Found executor %d' % e_id)
+                return ex
         return None
 
     def search_worker_by_id(self, wid):
