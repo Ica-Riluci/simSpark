@@ -103,13 +103,13 @@ class Application:
         }
         self.listener.sendMessage(self.wrap_msg(worker.host, worker.port, 'register_worker_success', value))
 
-    # def awake_ghost_worker(self, ghost_heartbeat):
-    #     self.listener.sendMessage(self.wrap_msg(
-    #         ghost_heartbeat['host'],
-    #         ghost_heartbeat['port'],
-    #         'register_worker',
-    #         None
-    #     ))
+    def awake_ghost_worker(self, ghost_heartbeat):
+        self.listener.sendMessage(self.wrap_msg(
+            ghost_heartbeat['host'],
+            ghost_heartbeat['port'],
+            'register_worker',
+            None
+        ))
 
     # def feedback_executor(self, executor, oid):
     #     value = {
@@ -240,11 +240,11 @@ class Application:
     #             return self.executors.index(e)
     #     return None
 
-    # def search_worker_by_id(self, id):
-    #     for w in self.workers:
-    #         if w.worker_id == id:
-    #             return self.workers.index(w)
-    #     return None
+    def search_worker_by_id(self, id):
+        for w in range(0, len(self.workers)):
+            if self.workers[w].worker_id == id:
+                return w
+        return None
 
     def search_worker_by_address(self, address):
         for w in range(0, len(self.workers)):
@@ -378,19 +378,19 @@ class Application:
     #     else:
     #         self.logs.warning('Application %d does not exist.' % (app['id']))
 
-    # def worker_heartbeat_ack(self, heartbeat):
-    #     worker_idx = self.search_worker_by_id(heartbeat['id'])
-    #     if worker_idx:
-    #         if self.workers[worker_idx].host == heartbeat['host']:
-    #             if not self.workers[worker_idx].alive:
-    #                 self.logs.info('Worker %d is awaken.' % (heartbeat['id']))
-    #                 self.workers[worker_idx].awake()
-    #             self.workers[worker_idx].update_heartbeat(heartbeat['time'])
-    #         else:
-    #             self.logs.error('Worker %d information does not match with the latest heartbeat.' % (heartbeat['id']))
-    #     else:
-    #         self.logs.warning('Ghost worker {%s} revives.' % (heartbeat['host']))
-    #         self.awake_ghost_worker(heartbeat)            
+    def worker_heartbeat_ack(self, heartbeat):
+        worker_idx = self.search_worker_by_id(heartbeat['id'])
+        if worker_idx != None:
+            if self.workers[worker_idx].host == heartbeat['host']:
+                if not self.workers[worker_idx].alive:
+                    self.logs.info('Worker %d is awaken.' % (heartbeat['id']))
+                    self.workers[worker_idx].awake()
+                self.workers[worker_idx].update_heartbeat(heartbeat['time'])
+            else:
+                self.logs.error('Worker %d information does not match with the latest heartbeat.' % (heartbeat['id']))
+        else:
+            self.logs.warning('Ghost worker {%s} revives.' % (heartbeat['host']))
+            self.awake_ghost_worker(heartbeat)            
 
     def register_worker(self, worker):
         worker_idx = self.search_worker_by_address(worker['host'])
@@ -538,14 +538,14 @@ class Application:
     def dispensor(self, msg):
         if msg['type'] == 'check_worker_TO':
             self.check_workers_heartbeat()
-    #     # msg from application
+        # msg from application
         elif msg['type'] == 'register_app':
             self.register_application(msg['value'])
     #     elif msg['type'] == 'kill_app':
     #         self.kill_application(msg['value'])
-    #     # msg from worker
-    #     elif msg['type'] == 'worker_heartbeat':
-    #         self.worker_heartbeat_ack(msg['value'])
+        # msg from worker
+        elif msg['type'] == 'worker_heartbeat':
+            self.worker_heartbeat_ack(msg['value'])
         elif msg['type'] == 'register_worker':
             self.register_worker(msg['value'])
     #     elif msg['type'] == 'update_executors':
