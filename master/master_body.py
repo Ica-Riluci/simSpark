@@ -89,12 +89,12 @@ class Application:
             value
         ))
 
-    # def feedback_application(self, app):
-    #     value = {
-    #         'id' : app.id,
-    #         'executor_list' : app.executor_list
-    #     }
-    #     self.listener.sendMessage(self.wrap_msg(app.host, app.port, 'resource_update', value))
+    def feedback_application(self, app):
+        value = {
+            'id' : app.id,
+            'executor_list' : app.executor_list
+        }
+        self.listener.sendMessage(self.wrap_msg(app.host, app.port, 'resource_update', value))
 
     def feedback_worker(self, worker):
         value = {
@@ -220,7 +220,7 @@ class Application:
         }
         return wrapped
 
-    # # functional components
+    # functional components
     def search_driver_by_id(self, did):
         for d in range(0, len(self.drivers)):
             if self.drivers[d].driver_id == did:
@@ -330,19 +330,31 @@ class Application:
         #             # self.kill_executors(worker.executor_list)
         #             self.workers.remove(worker)
 
-    # def register_application(self, app):
-    #     self.logs.info('Request for registration of application %s received.' % (app['name']))
-    #     driver_idx = self.search_driver_by_id(app['did'])
-    #     if driver_idx:
-    #         if self.drivers[driver_idx].app_id:
-    #             self.logs.critical('An application is already binded to driver %d.' % (app['did']))
-    #             return
-    #         new_app = ApplicationUnit(app['host'], app['port'], app['name'], app['did'])
-    #         self.apps.append(new_app)
-    #         self.logs.info('Application %s is binded to driver %d using id %d.' % (app['name'], app['did'], new_app.app_id))
-    #         self.feedback_application(new_app)
-    #     else:
-    #         self.logs.critical('Driver %d does not exist.' % (app['did']))
+    def register_application(self, app):
+        self.logs.info('Request for registration of application %s received.' % (app['name']))
+        driver_idx = self.search_driver_by_id(app['did'])
+        if driver_idx:
+            if self.drivers[driver_idx].app_id:
+                self.logs.critical('An application is already binded to driver %d.' % (app['did']))
+                self.listener.sendMessage(self.wrap_msg(
+                    app['host'],
+                    app['port'],
+                    'register_app_fail',
+                    None
+                ))
+                return
+            new_app = ApplicationUnit(app['host'], app['port'], app['name'], app['did'])
+            self.apps.append(new_app)
+            self.logs.info('Application %s is binded to driver %d using id %d.' % (app['name'], app['did'], new_app.app_id))
+            self.feedback_application(new_app)
+        else:
+            self.logs.critical('Driver %d does not exist.' % (app['did']))
+            self.listener.sendMessage(self.wrap_msg(
+                    app['host'],
+                    app['port'],
+                    'register_app_fail',
+                    None
+                ))
 
     # def kill_application(self, app):
     #     app_idx = self.search_application_by_id(app['id'])
@@ -525,8 +537,8 @@ class Application:
         if msg['type'] == 'check_worker_TO':
             self.check_workers_heartbeat()
     #     # msg from application
-    #     elif msg['type'] == 'register_app':
-    #         self.register_application(msg['value'])
+        elif msg['type'] == 'register_app':
+            self.register_application(msg['value'])
     #     elif msg['type'] == 'kill_app':
     #         self.kill_application(msg['value'])
     #     # msg from worker
