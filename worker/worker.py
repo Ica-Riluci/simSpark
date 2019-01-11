@@ -14,19 +14,22 @@ from publib.SparkConn import *
 global timer
 timer = None
 
+
 def tick(i, func, *args, **kwargs):
     global timer
-    if not timer:
+    if timer:
         timer.finished.wait(i)
         timer.function(*args, **kwargs)
     else:
         timer = threading.Timer(i, func, *args, **kwargs)
         timer.start()
 
+
 class appInfo:
     def __init__(self, id, host, port, worker):
         self.id = id
         self.context = executor.sparkContext(id, worker, host, port)
+
 
 class workerBody:
 
@@ -57,7 +60,7 @@ class workerBody:
 
     def __del__(self):
         global timer
-        if not timer:
+        if timer:
             timer.cancel()
 
     def fetch_info(self, rddid, host, port):
