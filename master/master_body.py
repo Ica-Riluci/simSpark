@@ -333,7 +333,7 @@ class Application:
     def register_application(self, app):
         self.logs.info('Request for registration of application %s received.' % (app['name']))
         driver_idx = self.search_driver_by_id(app['did'])
-        if driver_idx:
+        if driver_idx != None:
             if self.drivers[driver_idx].app_id:
                 self.logs.critical('An application is already binded to driver %d.' % (app['did']))
                 self.listener.sendMessage(self.wrap_msg(
