@@ -296,10 +296,12 @@ class Application:
     def check_application_ready(self, aid):
         self.logs.info('Check app %d' % (aid))
         app_idx = self.search_application_by_id(aid)
+        self.logs.info('app_idx: %d' % app_idx)
         if app_idx != None:
             self.logs.info('App %d status: %s' % (aid, self.apps[app_idx].status))
             if self.apps[app_idx].status == 'WAIT':
                 if len(self.apps[app_idx].executor_list) >= self.apps[app_idx].executors_req:
+                    self.logs.info('App %d is ready' % aid)
                     self.inform_application_ready(self.apps[app_idx])
         else:
             self.logs.error('Application %d does not exist.' % (aid))
