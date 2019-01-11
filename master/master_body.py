@@ -97,14 +97,9 @@ class Application:
     #     self.listener.sendMessage(self.wrap_msg(app.host, app.port, 'resource_update', value))
 
     def feedback_worker(self, worker):
-        if worker:
-            value = {
-                'id' : worker.worker_id
-            }
-        else:
-            value = {
-                'success' : False
-            }
+        value = {
+            'id' : worker.worker_id
+        }
         self.listener.sendMessage(self.wrap_msg(worker.host, worker.port, 'register_worker_success', value))
 
     # def awake_ghost_worker(self, ghost_heartbeat):
