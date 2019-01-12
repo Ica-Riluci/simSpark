@@ -3,6 +3,7 @@ import threading
 
 class executor(threading.Thread):
     def __init__(self, eid, appid, worker):
+        threading.Thread.__init__(self)
         self.eid = eid
         self.appid = appid
         self.status = 'WAIT'
