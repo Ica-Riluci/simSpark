@@ -132,7 +132,7 @@ class sparkContext(object):
         data = rdd.partitions[pid]
         return data
 
-class simRDD:
+class simRDD(object):
     rdd_count = 0
 
     STORE_NONE = 0
