@@ -192,6 +192,11 @@ class workerBody:
            'status': 'WAIT',
            'app_id': 1
         })
+        renew_list.append({
+           'id': 1,
+           'status': 'RUNNING',
+           'appid': 1
+        })
         if not(renew_list == None):
             self.logs.info('Trying to send executor message')
             msg = {
@@ -217,7 +222,7 @@ class workerBody:
             wrapmsg = self.wrap_msg(self.config['master_host'], self.config['master_port'], 'kill_executor', delmsg)
             self.listener.sendMessage(wrapmsg)
         self.logs.info('update ok')
-        tick(2.0, self.send_executor_status)
+        tick(12.0, self.send_executor_status)
 
     # todo
     def del_executor(self, value):
@@ -234,20 +239,24 @@ class workerBody:
         port = value['port']
         # self.appId = value['app_id']
         elist = []
-        for i in range(1, num):
+        for i in range(0, num):
             ex = executor.executor(self.exeid, value['app_id'], self, host, port)
             self.executors.append(ex)
             self.executors_status.append(ex.status)
             idmsg = {
                 'id': self.exeid,
+                'status': ex.status,
                 'app_id': value['app_id']
             }
             elist.append(idmsg)
             msg = {
                 'id': self.workerid,
+                'host': self.config['worker_host'],
+                'port': self.config['worker_port'],
                 'list': elist
             }
             wrapmsg = self.wrap_msg(self.config['master_host'], self.config['master_port'], 'update_executors', msg)
+            self.listener.sendMessage(wrapmsg)
             self.exeid -= 1
 
     def send_heartbeat(self):
