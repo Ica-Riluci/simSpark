@@ -257,18 +257,18 @@ class simContext:
         return wrapped
 
     def load_config(self):
-        self.logs.info('<master_config.json> is about to be loaded.')
+        self.logs.info('<driver_config.json> is about to be loaded.')
         config = {
-            'master_host' : '127.0.0.1',
-            'master_port' : 7077,
-            'driver_host' : '127.0.0.1',
-            'driver_port' : 9999,
-            'backend_port' : 10000,
+            'master_host' : '172.21.0.12',
+            'master_port' : 11111,
+            'driver_host' : '172.21.0.3',
+            'driver_port' : 10001,
+            'backend_port' : 10002,
             'parallel_stage' : 1,
             'timeout' : 60
         }
         try:
-            with open('master_config.json', 'r') as jsoninput:
+            with open('driver_config.json', 'r') as jsoninput:
                 inp = json.load(jsoninput)
             for k in config.keys():
                 if k in inp.keys():
