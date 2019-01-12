@@ -206,7 +206,7 @@ class simContext:
         self.listener.sendMessage(self.wrap_msg(
             self.config['master_host'],
             self.config['master_port'],
-            'register_driver',
+            'register_app',
             value
         ))
         self.logs.info('Wait for registeration feedback')
