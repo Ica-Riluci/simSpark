@@ -85,14 +85,17 @@ class sparkContext(object):
     def getPartition(self, rddid, partitionid):
         rdd = self.searchRdd(rddid)
         dependencyList = rdd.get_dependencies_list(partitionid)
+        self.worker.logs.info('Get the dependency list ok')
         dataList = []
         if dependencyList == []:
             partition = self.worker.fetch_data(rddid, partitionid, self.driverhost, self.driverport)
+            self.worker.logs.info('Fetch raw data ok')
         else:
             for d in dependencyList:
                 dataList.append(self.getPartition(d['rdd'], d['partition']))
+            self.worker.logs.info('Prepare ok')
             partition = rdd.compute(dataList, rddid, partitionid)
-        self.context.worker.logs.info('Get the partition ok with rdd %d and part %d' % (rddid, partitionid))
+        self.worker.logs.info('Get the partition ok with rdd %d and part %d' % (rddid, partitionid))
         return partition
 
     def searchRdd(self, rddid):
