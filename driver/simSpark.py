@@ -362,6 +362,7 @@ class simContext:
 
     def pend_task(self, executor, rid, pidx):
         value = {
+            'app_id' : self.app.app_id,
             'eid' : executor['executor_id'],
             'rid' : rid,
             'pidx' : pidx,
