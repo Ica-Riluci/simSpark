@@ -136,3 +136,65 @@ The module contains several class.
 
   `simStage` describes stages derived by a RDD. By calculating the dependencies, `simStage` can calculate the parent stages of itself.
 
+
+### Worker Node
+
+The worker of `simSpark` works as a daemon in several nodes of the cluster. A node is called `worker node`. A worker manage several executors to get partitioned data from driver, execute the specific calculate of tasks in parallel and then return the part of result to the driver.
+A worker also need to register in master and send its status periodically for management.
+
+Like the master node, the worker node also consisted of a main message loop, so a deamon process is also needed.
+Besides, we should have an executor to compute 
+Thus, three modules are designed and implemented.
+
+- `worker.py`
+- `worker_configuration.py`
+- `executor.py`
+
+The mentioned `SparkConn.py` is also need for connection.
+
+#### simSpark_worker.py
+
+`simSpark_worker.py` is a module which can demonize the functional part of worker. The module is written under the standards of daemon in Linux.
+
+##### Usage
+
+| start                               | stop                              | restart                              |
+| ----------------------------------- | --------------------------------- | ------------------------------------ |
+| `$ python simSpark_worker.py start` | `$python simSpark_worker.py stop` | `$python simSpark_worker.py restart` |
+
+#### worker.py
+
+`master_body.py` is the functional part of master node modules. After daemonized by `simSpark_master.py`, this module run as a daemon, maintaining a main loop.
+
+##### A simple working routine of the worker main program
+
+1.Read the configuration and set up the program
+
+2.Register the worker to the master
+
+3.Hold a main loop to receive messages, and continuously send heartbeat and executor status to master
+
+4.From master's request open executors
+
+5.The driver connect to the applied executors, the executors compute the task and send back to the driver a message, waiting the driver to fetch the data
+
+6.After an app / executor is finished, kill them in the worker(and send message to the master)
+
+
+#### executor.py
+
+This program is to define an executor for calculating and its running environment. 
+
+##### rdd
+
+Rdd is a basic structure to store the logical dependency in Spark. Here we implement a simplified version, an rdd stores the dependency and its calculating way.(It's only an abstract structure)
+
+##### sparkContext
+
+The sparkContext combine those RDD with real data, provide function to get raw data and connect RDDs to compute a certain partition of an RDD
+
+##### executor
+
+One executor is a threading to execute a certain task(which is to compute a certain partition of an RDD), and it will return the result of that partition to the driver.
+
+
