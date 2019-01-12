@@ -379,12 +379,12 @@ class simContext:
 
 
 # for test
-def buildin_map(self, x):
+def buildin_map(x):
     if x < 4:
         return x + 1
     return x
     
-def buildin_reduce(self, x, y):
+def buildin_reduce(x, y):
     return x + y
 
 class simPartition:
@@ -471,7 +471,7 @@ class simRDD:
         for i in range(0, len(self.partitions)):
             new_part = simPartition(self.context, i, [], simPartition.PARENT)
             new_parts.append(new_part)
-        new_rdd = mappedRDD(self.context, [self.rdd_id], new_parts, fun, ftype)
+        new_rdd = mappedRDD(self.context, [self], new_parts, fun, ftype)
         return new_rdd
 
     def map(self, fun, ftype=FREESOURCE):
@@ -484,7 +484,7 @@ class simRDD:
         for i in range(0, len(self.partitions)):
             new_part = simPartition(self.context, i, [], simPartition.PARENT)
             new_parts.append(new_part)
-        new_rdd = flatMappedRDD(self.context, [self.rdd_id], new_parts, fun, ftype)
+        new_rdd = flatMappedRDD(self.context, [self], new_parts, fun, ftype)
         return new_rdd
     
     def flatmap(self, fun, ftype=FREESOURCE):
@@ -497,7 +497,7 @@ class simRDD:
         for i in range(0, len(self.partitions)):
             new_part = simPartition(self.context, i, [], simPartition.PARENT)
             new_parts.append(new_part)
-        new_rdd = filterRDD(self.context, [self.rdd_id], new_parts, fun, ftype)
+        new_rdd = filterRDD(self.context, [self], new_parts, fun, ftype)
         return new_rdd
 
     def filter(self, fun, ftype=FREESOURCE):
