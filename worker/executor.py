@@ -74,7 +74,9 @@ class sparkContext(object):
         if type == self.NORMAL_RDD:
             rdd = simRDD(rddid, self, rddStatus['dependencies'], rddStatus['part_len'])
         elif type == self.MAP_RDD:
+            self.worker.logs.info('Prepare getting map rdd')
             rdd = mappedRDD(rddid, self, rddStatus['dependencies'], rddStatus['part_len'], rddStatus['fun'])
+            self.worker.logs.info('Getting map rdd ok')
         elif type == self.FLATMAP_RDD:
             pass
         elif type == self.FILTER_RDD:
