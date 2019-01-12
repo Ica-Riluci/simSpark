@@ -201,7 +201,7 @@ class simContext:
             'host' : self.config['driver_host'],
             'port' : self.port,
             'did' : self.driver_id,
-            'app_name' : self.app.app_name
+            'name' : self.app.app_name
         }
         self.listener.sendMessage(self.wrap_msg(
             self.config['master_host'],
