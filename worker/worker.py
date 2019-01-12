@@ -238,6 +238,7 @@ class workerBody:
 
     # todo
     def req_executor(self, value):
+        self.logs.info('Entered the req_executor function, the value is %s' %(str(value)))
         num = value['number']
         # host = value['host']
         # port = value['port']
