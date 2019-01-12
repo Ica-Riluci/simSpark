@@ -421,7 +421,7 @@ class simPartition:
             return
         self.source = s
 
-    def register_rdd(self, rid):
+    def set_rdd(self, rid):
         self.rdd_id = rid
     
     def __str__(self):
