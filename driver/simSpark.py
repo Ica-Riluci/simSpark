@@ -451,6 +451,7 @@ class simRDD:
         self.storage_lvl = s_lvl
         self.fun = None
         self.funtype = simRDD.BUILDIN
+        self.rdd_id = None
 
     @property
     def after_shuffle(self):
