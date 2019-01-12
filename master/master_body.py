@@ -90,9 +90,13 @@ class Application:
         ))
 
     def feedback_application(self, app):
+        el = []
+        for e in app.executor_list:
+            el.append(e.executor_id)
         value = {
             'id' : app.app_id,
-            'executor_list' : app.executor_list
+            'idle_executor' : el,
+            'busy_executor' : []
         }
         self.logs.info('Feed update to Application %d at address %s through port %d' % (app.app_id, app.host, app.port))
         self.listener.sendMessage(self.wrap_msg(app.host, app.port, 'resource_update', value))
