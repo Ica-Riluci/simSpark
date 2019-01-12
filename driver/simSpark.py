@@ -20,7 +20,7 @@ class simApp:
         self.app_id = None
         self.status = 'WAIT'
         self.idle_executors = []
-        # self.busy_executors = []
+        self.busy_executors = []
     
     @property
     def busy(self):
@@ -214,8 +214,6 @@ class simContext:
             msg = self.listener.accept()
             if msg['type'] == 'resource_update':
                 self.app.app_id = msg['value']['id']
-                self.app.idle_executor = msg['value']['idle_executor']
-                self.app.busy_executor = msg['value']['busy_executor']
                 break
         self.comm = backendComm(self)
         self.comm.start()
@@ -629,7 +627,7 @@ class simStage:
         while True:
             msg = self.context.listener.accept()
             if msg['type'] == 'resource_ready':
-                self.context.idle_executors += msg['value']
+                self.context.app.idle_executors += msg['value']
                 break
         for part in self.rdd.partitions:
             while True:
@@ -638,7 +636,7 @@ class simStage:
                     while True:
                         msg = self.context.listener.accept()
                         if msg['type'] == 'resource_ready':
-                            self.context.idle_executors += msg['value']
+                            self.context.app.idle_executors += msg['value']
                         break
                     continue
                 executor = self.context.app.idle_executors.pop()
