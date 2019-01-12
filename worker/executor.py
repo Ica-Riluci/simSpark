@@ -24,7 +24,7 @@ class executor(threading.Thread):
         self.context.worker.logs.info('After executor %d getting the new partition' % self.eid)
         # store the result in rdd
         rdd = self.context.searchRdd(self.rdd_id)
-        rdd.add_result(self.partition_id, result)
+        rdd.partitions[self.partition_id] = result
         # todo send the result out to the driver
         self.context.sendResult(self.rdd_id, self.partition_id)
         self.status = 'COMPLETED'
@@ -71,16 +71,19 @@ class sparkContext(object):
         '''
         self.worker.logs.info('Get rdd status %s' %(str(rddStatus)))
         type = rddStatus['rdd_type']
+        partition = []
+        for i in range(0, rddStatus['part_len']):
+            partition.append(None)
         if type == self.NORMAL_RDD:
-            rdd = simRDD(rddid, self, rddStatus['dependencies'], rddStatus['part_len'])
+            rdd = simRDD(rddid, self, rddStatus['dependencies'], partition)
         elif type == self.MAP_RDD:
             self.worker.logs.info('Prepare getting map rdd')
-            rdd = mappedRDD(rddid, self, rddStatus['dependencies'], rddStatus['part_len'], rddStatus['fun'])
+            rdd = mappedRDD(rddid, self, rddStatus['dependencies'], partition, rddStatus['fun'])
             self.worker.logs.info('Getting map rdd ok')
         elif type == self.FLATMAP_RDD:
             pass
         elif type == self.FILTER_RDD:
-            rdd = filterRDD(rddid, self, rddStatus['dependencies'], rddStatus['part_len'], rddStatus['fun'])
+            rdd = filterRDD(rddid, self, rddStatus['dependencies'], partition, rddStatus['fun'])
         self.worker.logs.info('initialize rdd')
         self.RDDList.append(rdd)
         return rdd
@@ -89,6 +92,8 @@ class sparkContext(object):
     def getPartition(self, rddid, partitionid):
         self.worker.logs.info('Prepare search rdd')
         rdd = self.searchRdd(rddid)
+        if rdd.partitions[partitionid] != None:
+            return rdd.partitions[partitionid]
         dependencyList = rdd.get_dependencies_list(partitionid)
         self.worker.logs.info('Get the dependency list ok')
         dataList = []
@@ -124,7 +129,7 @@ class sparkContext(object):
         rdd = self.searchRdd(rid)
         if not rdd:
             return None
-        data = rdd.search_part(pid)
+        data = rdd.partitions[pid]
         return data
 
 class simRDD:
@@ -159,19 +164,6 @@ class simRDD:
     def type(self):
         return simRDD.NORMAL_RDD
 
-    def search_part(self, pid):
-        for p in self.pdata:
-            if p['pid'] == pid:
-                return p['result']
-        return None
-
-    def add_result(self, pid, result):
-        if not self.search_part(pid):
-            self.pdata.append({
-                'pid' : self.partition_id,
-                'result': result
-            })
-
     def _1on1_dependencies(self, part):
         return [{
             'rdd': self.dependencies[0],
@@ -202,6 +194,7 @@ class mappedRDD(simRDD):
         last_part = dep_list[0]
         for e in last_part:
             res.append(self.buildin(e))
+        return res
 
     def buildin(self, x):
         if x < 4:
