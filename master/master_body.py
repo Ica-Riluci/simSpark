@@ -349,7 +349,7 @@ class Application:
                     self.logs.warning('Worker [%d] is out of contact.' % (worker.worker_id))
                     worker.alive = False
             else:
-                if worker.dead(self.config['worker_timeout'], self.config['reap_iteration']):
+                if worker.dead(self.config['worker_timeout'], self.config['reaper_iteration']):
                     self.logs.warning('Worker [%d] will be buried for out of contact after several iterations.' % (worker.worker_id))
                     el = []
                     for e in worker.executor_list:
