@@ -72,13 +72,13 @@ class sparkContext(object):
         self.worker.logs.info('Get rdd status %s' %(str(rddStatus)))
         type = rddStatus['rdd_type']
         if type == self.NORMAL_RDD:
-            rdd = simRDD(self, rddid)
+            rdd = simRDD(rddid, self, rddStatus['dependencies'], rddStatus['part_len'])
         elif type == self.MAP_RDD:
-            rdd = mappedRDD(self, rddid, rddStatus['dependencies'], rddStatus['part_len'], rddStatus['fun'])
+            rdd = mappedRDD(rddid, self, rddStatus['dependencies'], rddStatus['part_len'], rddStatus['fun'])
         elif type == self.FLATMAP_RDD:
             pass
         elif type == self.FILTER_RDD:
-            rdd = filterRDD(self, rddid, rddStatus['dependencies'], rddStatus['part_len'], rddStatus['fun'])
+            rdd = filterRDD(rddid, self, rddStatus['dependencies'], rddStatus['part_len'], rddStatus['fun'])
         self.worker.logs.info('initialize rdd')
         self.RDDList.append(rdd)
         return rdd
