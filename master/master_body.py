@@ -346,11 +346,11 @@ class Application:
         for worker in self.workers:
             if worker.alive:
                 if worker.heartbeat_expired(self.config['worker_timeout']):
-                    self.logs.warning('Worker [%d] is out of contact.' % (worker.id))
+                    self.logs.warning('Worker [%d] is out of contact.' % (worker.worker_id))
                     worker.alive = False
             else:
                 if worker.dead(self.config['worker_timeout'], self.config['reap_iteration']):
-                    self.logs.warning('Worker [%d] will be buried for out of contact after several iterations.' % (worker.id))
+                    self.logs.warning('Worker [%d] will be buried for out of contact after several iterations.' % (worker.worker_id))
                     el = []
                     for e in worker.executor_list:
                         el.append(e)
