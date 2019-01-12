@@ -77,7 +77,9 @@ class workerBody:
             heartbeat_timer.cancel()
 
     def fetch_info(self, rddid, host, port):
+        self.logs.info('into the info function, the params are %d,%s,%d' % (rddid, host, port))
         self.fetchLock.acquire()
+        self.logs.info('Lock acquire ok')
         msg = {
             'rid': rddid,
             'host': self.config['worker_host'],
@@ -85,10 +87,11 @@ class workerBody:
         }
         wrapMsg = self.wrap_msg(host, port, 'fetch_info', msg)
         self.driver_listener.sendMessage(wrapMsg)
-        msg = None
+        self.logs.info('Send fetch message ok')
         while True:
             msg = self.driver_listener.accept()
             if msg['type'] == 'fetch_info_ack':
+                self.logs.info('Get ack ok')
                 self.fetchLock.release()
                 return msg['value']
 
