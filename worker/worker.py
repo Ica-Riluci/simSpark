@@ -245,7 +245,9 @@ class workerBody:
         # self.appId = value['app_id']
         elist = []
         for i in range(0, num):
+            self.logs.info('prepare for the %d executor' % (str(i)))
             ex = executor.executor(self.exeid, value['app_id'], self)
+            self.logs.info('finish for the %d executor' % (str(i)))
             self.executors.append(ex)
             self.executors_status.append(ex.status)
             idmsg = {
