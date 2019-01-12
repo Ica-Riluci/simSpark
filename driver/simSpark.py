@@ -640,6 +640,7 @@ class simStage:
                         break
                     continue
                 executor = self.context.app.idle_executors.pop()
+                print('#' + str(executor['executor_id']) + ' executor for partition #' + str(part.idx))
                 self.context.pend_task(executor, self.rdd.rdd_id, part.idx)
                 # self.context.app.busy_executors.append(executor)
                 break
