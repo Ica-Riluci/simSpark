@@ -188,17 +188,17 @@ class workerBody:
                     'app_id': exe.appid
                 })
                 self.executors_status[e].status = exe.status
-        renew_list.append({
-           'id': -1,
-           'status': 'WAIT',
-           'app_id': 1
-        })
-        renew_list.append({
-           'id': 1,
-           'status': 'RUNNING',
-           'appid': 1
-        })
-        if not(renew_list == None):
+        # renew_list.append({
+        #    'id': -1,
+        #    'status': 'WAIT',
+        #    'app_id': 1
+        # })
+        # renew_list.append({
+        #    'id': 1,
+        #    'status': 'RUNNING',
+        #    'appid': 1
+        # })
+        if not(renew_list == []):
             self.logs.info('Trying to send executor message')
             msg = {
                 'id': self.workerid,
