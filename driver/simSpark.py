@@ -34,6 +34,7 @@ class backendComm(threading.Thread):
         self.running.set()
 
     def query_rdd(self, q):
+        print('RDD #%d queried by %s' % (q['rid'], q['host']))
         rdd = self.context.search_rdd_by_id(q['rid'])
         if not rdd:
             self.lis.sendMessage(self.context.wrap_msg(
@@ -61,6 +62,7 @@ class backendComm(threading.Thread):
             ))
 
     def query_partition(self, q):
+        print('RDD #%d partition #%d queried by %s' % (q['rid'], q['pidx'], q['host']))
         rdd = self.context.search_rdd_by_id(q['rid'])
         if not rdd:
             self.lis.sendMessage(self.context.wrap_msg(
