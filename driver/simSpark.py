@@ -446,8 +446,6 @@ class simRDD:
         self.context = ctx
         self.dependencies = dep
         self.partitions = part
-        for p in self.partitions:
-            p.set_rdd(self.rdd_id)
         self.storage_lvl = s_lvl
         self.fun = None
         self.funtype = simRDD.BUILDIN
@@ -465,6 +463,8 @@ class simRDD:
         simRDD.rdd_count += 1
         self.rdd_id = simRDD.rdd_count
         self.context.rdds.append(self)
+        for p in self.partitions:
+            p.set_rdd(self.rdd_id)
 
     def _map(self, fun, ftype=FREESOURCE):
         new_parts = []
