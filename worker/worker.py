@@ -239,12 +239,12 @@ class workerBody:
     # todo
     def req_executor(self, value):
         num = value['number']
-        host = value['host']
-        port = value['port']
+        # host = value['host']
+        # port = value['port']
         # self.appId = value['app_id']
         elist = []
         for i in range(0, num):
-            ex = executor.executor(self.exeid, value['app_id'], self, host, port)
+            ex = executor.executor(self.exeid, value['app_id'], self)
             self.executors.append(ex)
             self.executors_status.append(ex.status)
             idmsg = {
