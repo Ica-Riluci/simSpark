@@ -165,7 +165,7 @@ class simRDD(object):
     def _1on1_dependencies(self, part):
         return [{
             'rdd': self.dependencies[0],
-            'partition': [self.dependencies[0].partitions[part.idx]]
+            'partition': part
         }]
 
     def get_dependencies_list(self, part):
