@@ -17,6 +17,7 @@ class executor(threading.Thread):
 
     # todo   change the function into "run"
     def run(self):
+        self.worker.logs.info('Executor %d start the main function' % self.eid)
         self.status = 'RUNNING'
         result = self.context.getPartition(self.rdd_id, self.partition_id)
         # store the result in rdd

@@ -306,7 +306,7 @@ class workerBody:
         eid = value['eid']
         rid = value['rid']
         pid = value['pidx']
-        appid = value['appid']
+        appid = value['app_id']
         host = value['host']
         port = value['port']
         app = self.search_app_by_id(appid)
@@ -315,6 +315,7 @@ class workerBody:
         index = self.search_executor_by_id(eid)
         if index != None:
             self.executors[index].setId(rid, pid)
+            self.logs.info("Executor %d begin" % eid)
             self.executors[index].start()
         else:
             self.logs.critical('Missing executor id.')
