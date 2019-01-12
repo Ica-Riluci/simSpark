@@ -168,10 +168,10 @@ class workerBody:
     def reg_succ_executor(self, value):
         oid = value['original']
         e = self.search_executor_by_id(oid)
-        if e:
+        if e != None:
             self.executors[e].eid = value['assigned']
             self.executors[e].status = 'ALIVE'
-            self.logs.info('An executor %s got the new id %d' % (str(self.executors[e]), self.executors[e].eid))
+            self.logs.info('An executor got the new id %d' % self.executors[e].eid)
         else:
             self.logs.warning('Failed to read the right executor')
 
@@ -249,7 +249,7 @@ class workerBody:
         elist = []
         for i in range(0, num):
             self.logs.info('prepare for the %s executor' % (str(i)))
-            ex = executor.executor(self.exeid, value['app_id'], self)
+            ex = executor.executor(self.exeid, value['app_id'])
             self.logs.info('finish for the %s executor' % (str(i)))
             self.executors.append(ex)
             self.executors_status.append(ex.status)
@@ -259,6 +259,7 @@ class workerBody:
                 'app_id': value['app_id']
             }
             elist.append(idmsg)
+            self.exeid -= 1
         msg = {
             'id': self.workerid,
             'host': self.config['worker_host'],
@@ -267,7 +268,6 @@ class workerBody:
         }
         wrapmsg = self.wrap_msg(self.config['master_host'], self.config['master_port'], 'update_executors', msg)
         self.listener.sendMessage(wrapmsg)
-        self.exeid -= 1
 
     def send_heartbeat(self):
         msg = {
@@ -306,15 +306,16 @@ class workerBody:
         eid = value['eid']
         rid = value['rid']
         pid = value['pidx']
-        appid = value['appid']
+        appid = value['app_id']
         host = value['host']
         port = value['port']
         app = self.search_app_by_id(appid)
         if not app:
-            self.add_app(appid, host, port)
+            app = self.add_app(appid, host, port)
         index = self.search_executor_by_id(eid)
         if index != None:
-            self.executors[index].setId(rid, pid)
+            self.executors[index].setId(rid, pid, app.context)
+            self.logs.info("Executor %d begin" % eid)
             self.executors[index].start()
         else:
             self.logs.critical('Missing executor id.')
@@ -345,8 +346,9 @@ class workerBody:
         return None
 
     def add_app(self, appid, host, port):
-        app = appInfo(appid, host, port, self)
-        self.appList.append(app)
+        napp = appInfo(appid, host, port, self)
+        self.appList.append(napp)
+        return napp
 
     def delete_app(self, value):
         appid = value['appid']

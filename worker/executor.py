@@ -2,23 +2,26 @@ import time
 import threading
 
 class executor(threading.Thread):
-    def __init__(self, eid, appid, worker):
+    def __init__(self, eid, appid):
+        threading.Thread.__init__(self)
         self.eid = eid
         self.appid = appid
         self.status = 'WAIT'
-        self.worker = worker
 
     def __delete__(self, instance):
         pass
 
-    def setId(self, rdd_id, partition_id):
+    def setId(self, rdd_id, partition_id, ctx):
         self.rdd_id = rdd_id
         self.partition_id = partition_id
+        self.context = ctx
 
     # todo   change the function into "run"
     def run(self):
+        self.context.worker.logs.info('Executor %d start the main function' % self.eid)
         self.status = 'RUNNING'
         result = self.context.getPartition(self.rdd_id, self.partition_id)
+        self.context.worker.logs.info('After executor %d getting the new partition' % self.eid)
         # store the result in rdd
         rdd = self.context.searchRdd(self.rdd_id)
         rdd.add_result(self.partition_id, result)
@@ -55,6 +58,7 @@ class sparkContext(object):
         # self.partitionList = []
 
     def getRdd(self, rddid):
+        self.worker.logs.info('Prepare getting rdd')
         rddStatus = self.worker.fetch_info(rddid, self.driverhost, self.driverport)
         '''
         value = {
@@ -80,15 +84,20 @@ class sparkContext(object):
 
     # assume that we don't store partition data in the sparkContext
     def getPartition(self, rddid, partitionid):
+        self.worker.logs.info('Prepare search rdd')
         rdd = self.searchRdd(rddid)
         dependencyList = rdd.get_dependencies_list(partitionid)
+        self.worker.logs.info('Get the dependency list ok')
         dataList = []
         if dependencyList == []:
             partition = self.worker.fetch_data(rddid, partitionid, self.driverhost, self.driverport)
+            self.worker.logs.info('Fetch raw data ok')
         else:
             for d in dependencyList:
                 dataList.append(self.getPartition(d['rdd'], d['partition']))
+            self.worker.logs.info('Prepare ok')
             partition = rdd.compute(dataList, rddid, partitionid)
+        self.worker.logs.info('Get the partition ok with rdd %d and part %d' % (rddid, partitionid))
         return partition
 
     def searchRdd(self, rddid):
