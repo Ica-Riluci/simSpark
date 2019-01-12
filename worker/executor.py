@@ -69,6 +69,7 @@ class sparkContext(object):
                 'fun' : rdd.fun.__name__
         }
         '''
+        self.worker.logs.info('Get rdd status %s' %(str(rddStatus)))
         type = rddStatus['rdd_type']
         if type == self.NORMAL_RDD:
             rdd = simRDD(self, rddid)
@@ -78,7 +79,7 @@ class sparkContext(object):
             pass
         elif type == self.FILTER_RDD:
             rdd = filterRDD(self, rddid, rddStatus['dependencies'], rddStatus['part_len'], rddStatus['fun'])
-
+        self.worker.logs.info('initialize rdd')
         self.RDDList.append(rdd)
         return rdd
 
