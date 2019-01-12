@@ -177,17 +177,19 @@ class workerBody:
 
     def send_executor_status(self):
         self.logs.info('into the send_executor function')
+        #self.logs.info('executorlist:%s' % (str(self.executors)))
+        #self.logs.info('executorstatus:%s' % (str(self.executors_status)))
         renew_list = []
         exelen = len(self.executors)
         for e in range(0, exelen):
             exe = self.executors[e]
-            if exe.status != self.executors_status[e].status:
+            if exe.status != self.executors_status[e]:
                 renew_list.append({
                     'id': exe.id,
                     'status': exe.status,
                     'app_id': exe.appid
                 })
-                self.executors_status[e].status = exe.status
+                self.executors_status[e] = exe.status
         # renew_list.append({
         #    'id': -1,
         #    'status': 'WAIT',
@@ -240,14 +242,15 @@ class workerBody:
     def req_executor(self, value):
         self.logs.info('Entered the req_executor function, the value is %s' %(str(value)))
         num = value['number']
+        
         # host = value['host']
         # port = value['port']
         # self.appId = value['app_id']
         elist = []
         for i in range(0, num):
-            self.logs.info('prepare for the %d executor' % (str(i)))
+            self.logs.info('prepare for the %s executor' % (str(i)))
             ex = executor.executor(self.exeid, value['app_id'], self)
-            self.logs.info('finish for the %d executor' % (str(i)))
+            self.logs.info('finish for the %s executor' % (str(i)))
             self.executors.append(ex)
             self.executors_status.append(ex.status)
             idmsg = {
@@ -256,7 +259,6 @@ class workerBody:
                 'app_id': value['app_id']
             }
             elist.append(idmsg)
-        self.logs.info('Executors have been created, the list is %d' %(str(elist)))
         msg = {
             'id': self.workerid,
             'host': self.config['worker_host'],
