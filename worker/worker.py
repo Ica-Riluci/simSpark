@@ -171,11 +171,12 @@ class workerBody:
         if e:
             self.executors[e].eid = value['assigned']
             self.executors[e].status = 'ALIVE'
+            self.logs.info('An executor %s got the new id %d' % (str(self.executors[e]), self.executors[e].eid))
         else:
             self.logs.warning('Failed to read the right executor')
 
     def send_executor_status(self):
-        self.logs.info('into the send_executor funtion')
+        self.logs.info('into the send_executor function')
         renew_list = []
         exelen = len(self.executors)
         for e in range(0, exelen):
@@ -209,6 +210,7 @@ class workerBody:
             self.listener.sendMessage(wrappedmsg)
         # check if there is an executor is completed
         self.logs.info('The update status ok')
+        self.logs.info('Update execcutors %s' % str(renew_list))
         eid_list = []
         for nex in renew_list:
             if nex['status'] == 'COMPLETED':
@@ -221,16 +223,18 @@ class workerBody:
             }
             wrapmsg = self.wrap_msg(self.config['master_host'], self.config['master_port'], 'kill_executor', delmsg)
             self.listener.sendMessage(wrapmsg)
-        self.logs.info('update ok')
-        tick(12.0, self.send_executor_status)
+            self.logs.info('These executors id will be killed %s' % str(eid_list))
+        tick(5.0, self.send_executor_status)
 
     # todo
     def del_executor(self, value):
         if value['success']:
             eid = value['eid']
             pos = self.search_executor_by_id(eid)
+            self.logs.info('Kill the executor with eid:%d', eid)
             del self.executors[pos]
             del self.executors_status[pos]
+            self.logs.info('Left executors:%s' % str(self.executors))
 
     # todo
     def req_executor(self, value):
@@ -379,8 +383,9 @@ class workerBody:
         timer.cancel()
         timer = None
         heartbeat_tick(10.0, self.send_heartbeat)
-        tick(2.0, self.send_executor_status)
-
+        tick(5.0, self.send_executor_status)
+        #self.logs.info('fetch info:%s '% str(self.fetch_info(1, '172.21.0.3', 11111)))
+        #self.logs.info('fetch data:%s '% (str(self.fetch_data(2, 1, '172.21.0.3', 11111))))
         while True:
             msg = self.listener.accept()
             self.logs.info('Receive a msg:{%s}' % str(msg))
