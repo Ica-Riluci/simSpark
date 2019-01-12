@@ -379,12 +379,12 @@ class simContext:
 
 
 # for test
-def _buildin_map(self, x):
+def buildin_map(self, x):
     if x < 4:
         return x + 1
     return x
     
-def _buildin_reduce(self, x, y):
+def buildin_reduce(self, x, y):
     return x + y
 
 class simPartition:
