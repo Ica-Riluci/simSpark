@@ -190,8 +190,8 @@ class simContext:
             'register_driver',
             value
         ))
+        self.logs.info('Waiting for registeration feedback')
         while True:
-            self.logs.info('Waiting for registeration feedback')
             msg = self.listener.accept()
             if msg['type'] == 'register_driver_success':
                 self.driver_id = msg['value']['id']
@@ -209,10 +209,10 @@ class simContext:
             'register_driver',
             value
         ))
+        self.logs.info('Wait for registeration feedback')
         while True:
-            self.logs.info('Wait for registeration feedback')
             msg = self.listener.accept()
-            if msg['type'] == 'resource update':
+            if msg['type'] == 'resource_update':
                 self.app.app_id = msg['value']['id']
                 self.app.idle_executor = msg['value']['idle_executor']
                 self.app.busy_executor = msg['value']['busy_executor']
