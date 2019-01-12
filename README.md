@@ -164,7 +164,7 @@ The mentioned `SparkConn.py` is also need for connection.
 
 #### worker.py
 
-`master_body.py` is the functional part of master node modules. After daemonized by `simSpark_master.py`, this module run as a daemon, maintaining a main loop.
+`worker.py` is the functional part of master node modules. After daemonized by `worker.py`, this module run as a daemon, maintaining a main loop.
 
 ##### A simple working routine of the worker main program
 
