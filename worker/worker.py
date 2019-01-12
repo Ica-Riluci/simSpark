@@ -249,7 +249,7 @@ class workerBody:
         elist = []
         for i in range(0, num):
             self.logs.info('prepare for the %s executor' % (str(i)))
-            ex = executor.executor(self.exeid, value['app_id'], self)
+            ex = executor.executor(self.exeid, value['app_id'])
             self.logs.info('finish for the %s executor' % (str(i)))
             self.executors.append(ex)
             self.executors_status.append(ex.status)
@@ -311,10 +311,10 @@ class workerBody:
         port = value['port']
         app = self.search_app_by_id(appid)
         if not app:
-            self.add_app(appid, host, port)
+            app = self.add_app(appid, host, port)
         index = self.search_executor_by_id(eid)
         if index != None:
-            self.executors[index].setId(rid, pid)
+            self.executors[index].setId(rid, pid, app.context)
             self.logs.info("Executor %d begin" % eid)
             self.executors[index].start()
         else:
@@ -346,8 +346,9 @@ class workerBody:
         return None
 
     def add_app(self, appid, host, port):
-        app = appInfo(appid, host, port, self)
-        self.appList.append(app)
+        napp = appInfo(appid, host, port, self)
+        self.appList.append(napp)
+        return napp
 
     def delete_app(self, value):
         appid = value['appid']
