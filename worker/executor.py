@@ -58,6 +58,7 @@ class sparkContext(object):
         # self.partitionList = []
 
     def getRdd(self, rddid):
+        self.worker.logs.info('Prepare getting rdd')
         rddStatus = self.worker.fetch_info(rddid, self.driverhost, self.driverport)
         '''
         value = {
@@ -83,6 +84,7 @@ class sparkContext(object):
 
     # assume that we don't store partition data in the sparkContext
     def getPartition(self, rddid, partitionid):
+        self.worker.logs.info('Prepare search rdd')
         rdd = self.searchRdd(rddid)
         dependencyList = rdd.get_dependencies_list(partitionid)
         self.worker.logs.info('Get the dependency list ok')
