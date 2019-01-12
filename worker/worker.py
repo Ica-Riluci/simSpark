@@ -168,10 +168,10 @@ class workerBody:
     def reg_succ_executor(self, value):
         oid = value['original']
         e = self.search_executor_by_id(oid)
-        if e:
+        if e != None:
             self.executors[e].eid = value['assigned']
             self.executors[e].status = 'ALIVE'
-            self.logs.info('An executor %s got the new id %d' % (str(self.executors[e]), self.executors[e].eid))
+            self.logs.info('An executor got the new id %d' % self.executors[e].eid)
         else:
             self.logs.warning('Failed to read the right executor')
 
@@ -259,6 +259,7 @@ class workerBody:
                 'app_id': value['app_id']
             }
             elist.append(idmsg)
+            self.exeid -= 1
         msg = {
             'id': self.workerid,
             'host': self.config['worker_host'],
@@ -267,7 +268,6 @@ class workerBody:
         }
         wrapmsg = self.wrap_msg(self.config['master_host'], self.config['master_port'], 'update_executors', msg)
         self.listener.sendMessage(wrapmsg)
-        self.exeid -= 1
 
     def send_heartbeat(self):
         msg = {
