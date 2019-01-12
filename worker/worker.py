@@ -175,6 +175,7 @@ class workerBody:
             self.logs.warning('Failed to read the right executor')
 
     def send_executor_status(self):
+        self.logs.info('into the send_executor funtion')
         renew_list = []
         exelen = len(self.executors)
         for e in range(0, exelen):
@@ -186,7 +187,13 @@ class workerBody:
                     'app_id': exe.appid
                 })
                 self.executors_status[e].status = exe.status
-        if not(renew_list == []):
+        renew_list.append({
+           'id': -1,
+           'status': 'WAIT',
+           'app_id': 1
+        })
+        if not(renew_list == None):
+            self.logs.info('Trying to send executor message')
             msg = {
                 'id': self.workerid,
                 'host': self.config['worker_host'],
@@ -196,11 +203,12 @@ class workerBody:
             wrappedmsg = self.wrap_msg(self.config['master_host'], self.config['master_port'], 'update_executors', msg)
             self.listener.sendMessage(wrappedmsg)
         # check if there is an executor is completed
+        self.logs.info('The update status ok')
         eid_list = []
         for nex in renew_list:
-            if nex.status == 'COMPLETED':
+            if nex['status'] == 'COMPLETED':
                 eid_list.append(nex['id'])
-        if not(eid_list == None):
+        if not(eid_list == []):
             delmsg = {
                 'host': self.config['worker_host'],
                 'port': self.config['worker_port'],
@@ -208,6 +216,7 @@ class workerBody:
             }
             wrapmsg = self.wrap_msg(self.config['master_host'], self.config['master_port'], 'kill_executor', delmsg)
             self.listener.sendMessage(wrapmsg)
+        self.logs.info('update ok')
         tick(2.0, self.send_executor_status)
 
     # todo
