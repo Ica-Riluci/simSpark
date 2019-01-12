@@ -253,15 +253,16 @@ class workerBody:
                 'app_id': value['app_id']
             }
             elist.append(idmsg)
-            msg = {
-                'id': self.workerid,
-                'host': self.config['worker_host'],
-                'port': self.config['worker_port'],
-                'list': elist
-            }
-            wrapmsg = self.wrap_msg(self.config['master_host'], self.config['master_port'], 'update_executors', msg)
-            self.listener.sendMessage(wrapmsg)
-            self.exeid -= 1
+        self.logs.info('Executors have been created, the list is %d' %(str(elist)))
+        msg = {
+            'id': self.workerid,
+            'host': self.config['worker_host'],
+            'port': self.config['worker_port'],
+            'list': elist
+        }
+        wrapmsg = self.wrap_msg(self.config['master_host'], self.config['master_port'], 'update_executors', msg)
+        self.listener.sendMessage(wrapmsg)
+        self.exeid -= 1
 
     def send_heartbeat(self):
         msg = {
