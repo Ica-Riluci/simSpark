@@ -149,8 +149,6 @@ class simRDD(object):
         self.context = ctx
         self.dependencies = dep
         self.partitions = part
-        for p in self.partitions:
-            p.set_rdd(self.rdd_id)
         self.storage_lvl = s_lvl
         self.fun = None
         self.funtype = simRDD.BUILDIN
