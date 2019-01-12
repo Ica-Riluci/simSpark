@@ -334,7 +334,7 @@ class workerBody:
 
     def search_executor_by_id(self, eid):
         for e in range(0, len(self.executors)):
-            if self.executors[e].executor_id == eid:
+            if self.executors[e].eid == eid:
                 return e
         return None
 
