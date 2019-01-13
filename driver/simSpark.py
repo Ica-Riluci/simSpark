@@ -336,7 +336,7 @@ class simContext:
         return ret
 
     def fetch_partition(self, source, rid, pidx, frommem):
-        if not rid:
+        if rid == None:
             return None
         if frommem:
             value = {
@@ -409,6 +409,7 @@ class simPartition:
                 return self.source
             else:
                 self.local = True
+                print('Fetching from source %s:%d' % (self.source[0], self.source[1]))
                 data = self.context.fetch_partition(self.source, self.rdd_id, self.idx, frommem=True)
                 self.source = data
                 return data
@@ -548,6 +549,7 @@ class simRDD:
             continue
         col = []
         for part in self.partitions:
+            print(part.source)
             ret = part.records[0]
             restrec = part.records[1:]
             for rec in restrec:
