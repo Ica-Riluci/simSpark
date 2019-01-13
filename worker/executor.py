@@ -188,7 +188,7 @@ class mappedRDD(simRDD):
         return self._1on1_dependencies(part)
 
     def compute(self, dep_list, rid, pid):
-        self.worker.logs.info('into the compute')
+        self.context.worker.logs.info('into the compute')
         res = []
         last_part = dep_list[0]
         for e in last_part:
