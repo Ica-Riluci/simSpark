@@ -85,7 +85,7 @@ class backendComm(threading.Thread):
                     }
                 ))
             else:
-                if not rdd.parititions[q['pidx']].fetchable:
+                if not rdd.partitions[q['pidx']].fetchable:
                     self.lis.sendMessage(self.context.wrap_msg(
                         q['host'],
                         q['port'],
