@@ -544,7 +544,7 @@ class simRDD:
     # actions
     def reduce(self, fun):
         self.calc()
-        while not self.context.search_stage_by_rdd(self).done:
+        while not self.context.search_stage_by_rdd(self.rdd_id).done:
             continue
         col = []
         for part in self.partitions:
