@@ -7,6 +7,9 @@ class executor(threading.Thread):
         self.eid = eid
         self.appid = appid
         self.status = 'WAIT'
+        self.rdd_id = None
+        self.partition_id = None
+        self.context = None
 
     def __delete__(self, instance):
         pass
@@ -186,6 +189,7 @@ class simRDD(object):
     def set_partition(self, pid, result):
         self.setLock.acquire()
         self.partitions[pid] = result
+        self.context.worker.logs.info('partition list:%s' % (str(self.partitions)))
         self.setLock.release()
 
 
