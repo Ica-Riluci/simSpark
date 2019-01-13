@@ -25,7 +25,7 @@ class executor(threading.Thread):
         # store the result in rdd
         rdd = self.context.searchRdd(self.rdd_id)
         rdd.partitions[self.partition_id] = result
-        self.context.worker.logs.info('rid:%d pid:%d res:%s' % (self.rdd_id, self.partition_id, str(result)))
+        self.context.worker.logs.info('rid:%d pid:%d res:%s result' % (self.rdd_id, self.partition_id, str(result)))
         # todo send the result out to the driver
         self.context.sendResult(self.rdd_id, self.partition_id)
         self.status = 'COMPLETED'
@@ -130,6 +130,7 @@ class sparkContext(object):
         rdd = self.searchRdd(rid)
         if not rdd:
             return None
+        self.worker.logs.info('return all the partition %s with pid %d' % (str(rdd.partitions), pid))
         data = rdd.partitions[pid]
         return data
 
