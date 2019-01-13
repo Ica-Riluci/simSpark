@@ -548,6 +548,7 @@ class simRDD:
         while not self.context.search_stage_by_rdd(self.rdd_id).done:
             continue
         col = []
+        print(self.partitions)
         for part in self.partitions:
             print(part.source)
             ret = part.records[0]
