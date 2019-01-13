@@ -552,6 +552,8 @@ class simRDD:
         col = []
         for part in self.partitions:
             print(part.source)
+            print(part.local)
+            print(part.records)
             ret = part.records[0]
             restrec = part.records[1:]
             for rec in restrec:
