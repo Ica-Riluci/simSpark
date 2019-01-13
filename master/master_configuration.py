@@ -2,6 +2,7 @@ import json
 import sys
 
 defaultconfig = {
+    'master_host': '127.0.0.1',
     'master_port' : 7077,
     'webui_port' : 8080,
     'worker_timeout' : 60,
