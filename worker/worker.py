@@ -184,7 +184,7 @@ class workerBody:
             exe = self.executors[e]
             if exe.status != self.executors_status[e]:
                 renew_list.append({
-                    'id': exe.id,
+                    'id': exe.eid,
                     'status': exe.status,
                     'app_id': exe.appid
                 })
