@@ -46,6 +46,8 @@ The project is meant to implement a `simSpark` system which can finish some simp
 | ---------- | ------------------------- | -------------- |
 | Python 3.5 | Ubuntu 18.04 / Windows 10 | Ubuntu 16.04   |
 
+![Structure](README_pic/1.png)
+
 ### Master Node
 
 The master of `simSpark` works as a daemon in a node of the cluster. The node is called `master node`. A master should be able to manage the resource of the cluster and help the communication between workers and applications.
