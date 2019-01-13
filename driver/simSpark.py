@@ -100,7 +100,7 @@ class backendComm(threading.Thread):
                         q['host'],
                         q['port'],
                         'fetch_data_ack',
-                        rdd.parititions[q['pidx']].records
+                        rdd.partitions[q['pidx']].records
                     ))
 
     def update_task(self, u):
