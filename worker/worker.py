@@ -138,13 +138,13 @@ class workerBody:
     # without changed,need change after use
     def load_config(self):
         config = {
-            'master_host': 'localhost',
-            'master_port': 7077,
-            'worker_host': 'localhost',
-            'worker_port': 8801,
+            'master_host': '172.21.0.12',
+            'master_port': 11111,
+            'worker_host': '172.21.0.14',
+            'worker_port': 11111,
             'webui_port': 8080,
-            'fetch_port': 9000,
-            'worker_timeout': 60000,
+            'fetch_port': 11112,
+            'worker_timeout': 60,
             'spread_out': True,
             'default_core': -1,
             'reaper_iteration': 15,
