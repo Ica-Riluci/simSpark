@@ -104,6 +104,7 @@ class backendComm(threading.Thread):
                     ))
 
     def update_task(self, u):
+        print(u)
         rdd = self.context.search_rdd_by_id(u['rid'])
         if not rdd:
             self.lis.sendMessage(self.context.wrap_msg(
@@ -336,7 +337,7 @@ class simContext:
         return ret
 
     def fetch_partition(self, source, rid, pidx, frommem):
-        if not rid:
+        if rid == None:
             return None
         if frommem:
             value = {
@@ -409,6 +410,7 @@ class simPartition:
                 return self.source
             else:
                 self.local = True
+                print('Fetching from source %s:%d' % (self.source[0], self.source[1]))
                 data = self.context.fetch_partition(self.source, self.rdd_id, self.idx, frommem=True)
                 self.source = data
                 return data
@@ -472,7 +474,7 @@ class simRDD:
     def _map(self, fun, ftype=FREESOURCE):
         new_parts = []
         for i in range(0, len(self.partitions)):
-            new_part = simPartition(self.context, i, [], simPartition.PARENT)
+            new_part = simPartition(self.context, i, None, simPartition.PARENT, False)
             new_parts.append(new_part)
         new_rdd = mappedRDD(self.context, [self], new_parts, fun, ftype)
         return new_rdd
@@ -485,7 +487,7 @@ class simRDD:
     def _flatmap(self, fun, ftype=FREESOURCE):
         new_parts = []
         for i in range(0, len(self.partitions)):
-            new_part = simPartition(self.context, i, [], simPartition.PARENT)
+            new_part = simPartition(self.context, i, None, simPartition.PARENT, False)
             new_parts.append(new_part)
         new_rdd = flatMappedRDD(self.context, [self], new_parts, fun, ftype)
         return new_rdd
@@ -498,7 +500,7 @@ class simRDD:
     def _filter(self, fun, ftype=FREESOURCE):
         new_parts = []
         for i in range(0, len(self.partitions)):
-            new_part = simPartition(self.context, i, [], simPartition.PARENT)
+            new_part = simPartition(self.context, i, None, simPartition.PARENT, False)
             new_parts.append(new_part)
         new_rdd = filterRDD(self.context, [self], new_parts, fun, ftype)
         return new_rdd
@@ -543,11 +545,15 @@ class simRDD:
     
     # actions
     def reduce(self, fun):
+        print(self.partitions)
         self.calc()
         while not self.context.search_stage_by_rdd(self.rdd_id).done:
             continue
         col = []
         for part in self.partitions:
+            print(part.source)
+            print(part.local)
+            print(part.records)
             ret = part.records[0]
             restrec = part.records[1:]
             for rec in restrec:
