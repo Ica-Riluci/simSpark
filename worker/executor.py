@@ -26,6 +26,7 @@ class executor(threading.Thread):
         rdd = self.context.searchRdd(self.rdd_id)
         rdd.partitions[self.partition_id] = result
         self.context.worker.logs.info('rid:%d pid:%d res:%s result' % (self.rdd_id, self.partition_id, str(result)))
+        self.context.worker.logs.info('partition result %s' % (str(rdd.partitions)))
         # todo send the result out to the driver
         self.context.sendResult(self.rdd_id, self.partition_id)
         self.status = 'COMPLETED'
