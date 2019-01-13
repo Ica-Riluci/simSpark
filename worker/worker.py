@@ -120,6 +120,7 @@ class workerBody:
             'port': self.config['worker_port'],
             'pidx': pid,
             'rid': rddid,
+            'method': 0
         }
         wrapMsg = self.wrap_msg(host, port, 'task_finished', msg)
         self.driver_listener.sendMessage(wrapMsg)
