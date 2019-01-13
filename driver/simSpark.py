@@ -126,6 +126,7 @@ class backendComm(threading.Thread):
                 ))
             else:
                 rdd.partitions[u['pidx']].update_source((u['host'], u['port']))
+                rdd.partitions[u['pidx']].method = u['method']
                 stage = self.context.search_stage_by_rdd(rdd.rdd_id)
                 if not stage:
                     self.context.logs.critical('Missing stage.')
@@ -405,6 +406,7 @@ class simPartition:
     
     @property
     def records(self):
+        print('Checking record of RDD #%d Partition #%d' % (self.rdd_id, self.idx))
         if self.method == simPartition.MEMORY:
             if self.local:
                 return self.source
