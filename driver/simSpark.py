@@ -52,8 +52,10 @@ class backendComm(threading.Thread):
                 'part_len' : len(rdd.partitions),
                 'dependencies' : dep,
                 'funtype' : rdd.funtype,
-                'fun' : rdd.fun.__name__
+                'fun' : None
             }
+            if rdd.fun != None:
+                value['fun'] = rdd.fun.__name__
             self.lis.sendMessage(self.context.wrap_msg(
                 q['host'],
                 q['port'],
