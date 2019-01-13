@@ -50,15 +50,7 @@ The project is meant to implement a `simSpark` system which can finish some simp
 
 All official and third-party library used:
 
-`sys`,`time`,`json`,`threading`,`logging`,`datetime`
-os
-inspect
-binascii
-functools
-signal
-fcntl
-subprocess
-pickle
+`sys`,`time`,`json`,`threading`,`logging`,`datetime`,`os`,`inspect`,`binascii`,`functools`,`signal`,`fcntl`,`subprocess`,`pickle`
 
 ### Master Node
 

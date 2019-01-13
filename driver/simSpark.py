@@ -287,6 +287,8 @@ class simContext:
         for i in range(0, fineness):
             l = len(arr) // fineness * i
             r = len(arr) // fineness * (i + 1)
+            if i == fineness - 1:
+                r = len(arr)
             data = arr[l:r]
             new_par = simPartition(self, i, data)
             part.append(new_par)
