@@ -20,7 +20,7 @@ class simApp:
         self.app_id = None
         self.status = 'WAIT'
         self.idle_executors = []
-        # self.busy_executors = []
+        self.busy_executors = []
     
     @property
     def busy(self):
@@ -34,6 +34,7 @@ class backendComm(threading.Thread):
         self.running.set()
 
     def query_rdd(self, q):
+        print('RDD #%d queried by %s' % (q['rid'], q['host']))
         rdd = self.context.search_rdd_by_id(q['rid'])
         if not rdd:
             self.lis.sendMessage(self.context.wrap_msg(
@@ -51,8 +52,10 @@ class backendComm(threading.Thread):
                 'part_len' : len(rdd.partitions),
                 'dependencies' : dep,
                 'funtype' : rdd.funtype,
-                'fun' : rdd.fun.__name__
+                'fun' : None
             }
+            if rdd.fun != None:
+                value['fun'] = rdd.fun.__name__
             self.lis.sendMessage(self.context.wrap_msg(
                 q['host'],
                 q['port'],
@@ -61,6 +64,7 @@ class backendComm(threading.Thread):
             ))
 
     def query_partition(self, q):
+        print('RDD #%d partition #%d queried by %s' % (q['rid'], q['pidx'], q['host']))
         rdd = self.context.search_rdd_by_id(q['rid'])
         if not rdd:
             self.lis.sendMessage(self.context.wrap_msg(
@@ -81,7 +85,7 @@ class backendComm(threading.Thread):
                     }
                 ))
             else:
-                if not rdd.parititions[q['pidx']].fetchable:
+                if not rdd.partitions[q['pidx']].fetchable:
                     self.lis.sendMessage(self.context.wrap_msg(
                         q['host'],
                         q['port'],
@@ -96,10 +100,11 @@ class backendComm(threading.Thread):
                         q['host'],
                         q['port'],
                         'fetch_data_ack',
-                        rdd.parititions[q['pidx']].records
+                        rdd.partitions[q['pidx']].records
                     ))
 
     def update_task(self, u):
+        print(u)
         rdd = self.context.search_rdd_by_id(u['rid'])
         if not rdd:
             self.lis.sendMessage(self.context.wrap_msg(
@@ -121,6 +126,7 @@ class backendComm(threading.Thread):
                 ))
             else:
                 rdd.partitions[u['pidx']].update_source((u['host'], u['port']))
+                rdd.partitions[u['pidx']].method = u['method']
                 stage = self.context.search_stage_by_rdd(rdd.rdd_id)
                 if not stage:
                     self.context.logs.critical('Missing stage.')
@@ -128,6 +134,15 @@ class backendComm(threading.Thread):
                 stage.task_done[u['pidx']] = True
                 if stage.done:
                     stage.finish()
+                self.lis.sendMessage(self.context.wrap_msg(
+                    u['host'],
+                    u['port'],
+                    'task_finished_ack',
+                    {
+                        'rid' : u['rid'],
+                        'pidx' : u['pidx']
+                    }
+                ))
 
     def dispense(self, msg):
         if msg['type'] == 'fetch_info':
@@ -181,8 +196,8 @@ class simContext:
             'register_driver',
             value
         ))
+        self.logs.info('Waiting for registeration feedback')
         while True:
-            self.logs.info('Waiting for registeration feedback')
             msg = self.listener.accept()
             if msg['type'] == 'register_driver_success':
                 self.driver_id = msg['value']['id']
@@ -192,21 +207,19 @@ class simContext:
             'host' : self.config['driver_host'],
             'port' : self.port,
             'did' : self.driver_id,
-            'app_name' : self.app.app_name
+            'name' : self.app.app_name
         }
         self.listener.sendMessage(self.wrap_msg(
             self.config['master_host'],
             self.config['master_port'],
-            'register_driver',
+            'register_app',
             value
         ))
+        self.logs.info('Wait for registeration feedback')
         while True:
-            self.logs.info('Wait for registeration feedback')
             msg = self.listener.accept()
-            if msg['type'] == 'resource update':
+            if msg['type'] == 'resource_update':
                 self.app.app_id = msg['value']['id']
-                self.app.idle_executor = msg['value']['idle_executor']
-                self.app.busy_executor = msg['value']['busy_executor']
                 break
         self.comm = backendComm(self)
         self.comm.start()
@@ -248,18 +261,18 @@ class simContext:
         return wrapped
 
     def load_config(self):
-        self.logs.info('<master_config.json> is about to be loaded.')
+        self.logs.info('<driver_config.json> is about to be loaded.')
         config = {
-            'master_host' : '127.0.0.1',
-            'master_port' : 7077,
-            'driver_host' : '127.0.0.1',
-            'driver_port' : 9999,
-            'backend_port' : 10000,
+            'master_host' : '172.21.0.12',
+            'master_port' : 11111,
+            'driver_host' : '172.21.0.3',
+            'driver_port' : 10001,
+            'backend_port' : 10002,
             'parallel_stage' : 1,
             'timeout' : 60
         }
         try:
-            with open('master_config.json', 'r') as jsoninput:
+            with open('driver_config.json', 'r') as jsoninput:
                 inp = json.load(jsoninput)
             for k in config.keys():
                 if k in inp.keys():
@@ -325,10 +338,13 @@ class simContext:
         return ret
 
     def fetch_partition(self, source, rid, pidx, frommem):
-        if not rid:
+        if rid == None:
             return None
         if frommem:
             value = {
+                'appid' : self.app.app_id,
+                'host' : self.config['driver_host'],
+                'port' : self.config['driver_port'],
                 'rid' : rid,
                 'pidx' : pidx
             }
@@ -352,6 +368,7 @@ class simContext:
 
     def pend_task(self, executor, rid, pidx):
         value = {
+            'app_id' : self.app.app_id,
             'eid' : executor['executor_id'],
             'rid' : rid,
             'pidx' : pidx,
@@ -367,12 +384,12 @@ class simContext:
 
 
 # for test
-def _buildin_map(self, x):
+def buildin_map(x):
     if x < 4:
         return x + 1
     return x
     
-def _buildin_reduce(self, x, y):
+def buildin_reduce(x, y):
     return x + y
 
 class simPartition:
@@ -389,11 +406,13 @@ class simPartition:
     
     @property
     def records(self):
+        print('Checking record of RDD #%d Partition #%d' % (self.rdd_id, self.idx))
         if self.method == simPartition.MEMORY:
             if self.local:
                 return self.source
             else:
                 self.local = True
+                print('Fetching from source %s:%d' % (self.source[0], self.source[1]))
                 data = self.context.fetch_partition(self.source, self.rdd_id, self.idx, frommem=True)
                 self.source = data
                 return data
@@ -409,7 +428,7 @@ class simPartition:
             return
         self.source = s
 
-    def register_rdd(self, rid):
+    def set_rdd(self, rid):
         self.rdd_id = rid
     
     def __str__(self):
@@ -434,11 +453,10 @@ class simRDD:
         self.context = ctx
         self.dependencies = dep
         self.partitions = part
-        for p in self.partitions:
-            p.set_rdd(self.rdd_id)
         self.storage_lvl = s_lvl
         self.fun = None
         self.funtype = simRDD.BUILDIN
+        self.rdd_id = None
 
     @property
     def after_shuffle(self):
@@ -452,13 +470,15 @@ class simRDD:
         simRDD.rdd_count += 1
         self.rdd_id = simRDD.rdd_count
         self.context.rdds.append(self)
+        for p in self.partitions:
+            p.set_rdd(self.rdd_id)
 
     def _map(self, fun, ftype=FREESOURCE):
         new_parts = []
         for i in range(0, len(self.partitions)):
-            new_part = simPartition(self.context, i, [], simPartition.PARENT)
+            new_part = simPartition(self.context, i, None, simPartition.PARENT, False)
             new_parts.append(new_part)
-        new_rdd = mappedRDD(self.context, [self.rdd_id], new_parts, fun, ftype)
+        new_rdd = mappedRDD(self.context, [self], new_parts, fun, ftype)
         return new_rdd
 
     def map(self, fun, ftype=FREESOURCE):
@@ -469,9 +489,9 @@ class simRDD:
     def _flatmap(self, fun, ftype=FREESOURCE):
         new_parts = []
         for i in range(0, len(self.partitions)):
-            new_part = simPartition(self.context, i, [], simPartition.PARENT)
+            new_part = simPartition(self.context, i, None, simPartition.PARENT, False)
             new_parts.append(new_part)
-        new_rdd = flatMappedRDD(self.context, [self.rdd_id], new_parts, fun, ftype)
+        new_rdd = flatMappedRDD(self.context, [self], new_parts, fun, ftype)
         return new_rdd
     
     def flatmap(self, fun, ftype=FREESOURCE):
@@ -482,9 +502,9 @@ class simRDD:
     def _filter(self, fun, ftype=FREESOURCE):
         new_parts = []
         for i in range(0, len(self.partitions)):
-            new_part = simPartition(self.context, i, [], simPartition.PARENT)
+            new_part = simPartition(self.context, i, None, simPartition.PARENT, False)
             new_parts.append(new_part)
-        new_rdd = filterRDD(self.context, [self.rdd_id], new_parts, fun, ftype)
+        new_rdd = filterRDD(self.context, [self], new_parts, fun, ftype)
         return new_rdd
 
     def filter(self, fun, ftype=FREESOURCE):
@@ -527,11 +547,15 @@ class simRDD:
     
     # actions
     def reduce(self, fun):
+        print(self.partitions)
         self.calc()
-        while not self.context.search_stage_by_rdd(self).done:
+        while not self.context.search_stage_by_rdd(self.rdd_id).done:
             continue
         col = []
         for part in self.partitions:
+            print(part.source)
+            print(part.local)
+            print(part.records)
             ret = part.records[0]
             restrec = part.records[1:]
             for rec in restrec:
@@ -616,7 +640,7 @@ class simStage:
         while True:
             msg = self.context.listener.accept()
             if msg['type'] == 'resource_ready':
-                self.context.idle_executors += msg['value']
+                self.context.app.idle_executors += msg['value']
                 break
         for part in self.rdd.partitions:
             while True:
@@ -625,10 +649,11 @@ class simStage:
                     while True:
                         msg = self.context.listener.accept()
                         if msg['type'] == 'resource_ready':
-                            self.context.idle_executors += msg['value']
+                            self.context.app.idle_executors += msg['value']
                         break
                     continue
                 executor = self.context.app.idle_executors.pop()
+                print('#' + str(executor['executor_id']) + ' executor for partition #' + str(part.idx))
                 self.context.pend_task(executor, self.rdd.rdd_id, part.idx)
                 # self.context.app.busy_executors.append(executor)
                 break

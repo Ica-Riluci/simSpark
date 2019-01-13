@@ -2,58 +2,43 @@ import time
 import threading
 
 class executor(threading.Thread):
-    def __init__(self, id, appid, worker):
-        self.id = id
+    def __init__(self, eid, appid, lock):
+        threading.Thread.__init__(self)
+        self.eid = eid
         self.appid = appid
         self.status = 'WAIT'
-        self.worker = worker
+        self.rdd_id = None
+        self.partition_id = None
+        self.context = None
+        self.lock = lock
 
     def __delete__(self, instance):
         pass
 
-    def setId(self, rdd_id, partition_id):
+    def setId(self, rdd_id, partition_id, ctx):
         self.rdd_id = rdd_id
         self.partition_id = partition_id
+        self.context = ctx
 
     # todo   change the function into "run"
     def run(self):
+        self.context.worker.logs.info('Executor %d start the main function' % self.eid)
         self.status = 'RUNNING'
         result = self.context.getPartition(self.rdd_id, self.partition_id)
-
+        self.context.worker.logs.info('After executor %d getting the new partition' % self.eid)
+        # store the result in rdd
+        rdd = self.context.searchRdd(self.rdd_id)
+        self.lock.acquire()
+        self.context.worker.logs.info('Lock Start')
+        rdd.set_partition(self.partition_id, result)
+        self.context.worker.logs.info('Lock End')
+        self.lock.release()
+        # rdd.partitions[self.partition_id] = result
+        self.context.worker.logs.info('rid:%d pid:%d res:%s result' % (self.rdd_id, self.partition_id, str(result)))
+        self.context.worker.logs.info('partitionist %s' % (str(rdd.partitions)))
         # todo send the result out to the driver
-        self.context.getPartition.sendResult(result, self.rdd_id, self.partition_id)
-
+        self.context.sendResult(self.rdd_id, self.partition_id)
         self.status = 'COMPLETED'
-
-    '''
-    #including the calculate and store procedure
-    def calc(self, rdd_id, partition_id):
-        res1 = self.worker.getPartition(partition_id, rdd_id, self.driver_host, self.driver_port)
-        if (res1 != None):
-            return res1
-        rdd = self.worker.getRDD(rdd_id, self.driver_host, self.driver_port)
-        # calculate dependency, assume that its a one to one function
-        partition_data = []
-        for e in rdd['dependencies']:
-            tmp_res = self.worker.getPartition(partition_id, e, self.driver_host, self.driver_port)
-            if (tmp_res == None):
-                tmp_res = self.calc(partition_id, e)
-            partition_data.append(tmp_res)
-        result = self.compute(rdd['rdd_type'], rdd['part_len'], partition_data, rdd['funtype'])
-        self.worker.setPartition(partition_id, rdd_id, result)
-        return result
-
-    def compute(self, type, part_len ,partition_data, func):
-        result = []
-        if type == 'map':
-            for e in partition_data[0]:
-                result.append(self._buildin_map(e))
-        elif type == 'reduce':
-            length = len(result)
-            for i in range(0, length):
-                result.append(self._buildin_reduce(partition_data[0][i], partition_data[1][i]))
-        return result
-    '''
 
     def _buildin_map(self, x):
         if x < 4:
@@ -81,9 +66,11 @@ class sparkContext(object):
         self.driverport = port
         self.worker = worker
         self.RDDList = []
+        self.searchLock = threading.Lock()
         # self.partitionList = []
 
     def getRdd(self, rddid):
+        self.worker.logs.info('Prepare getting rdd')
         rddStatus = self.worker.fetch_info(rddid, self.driverhost, self.driverport)
         '''
         value = {
@@ -94,51 +81,74 @@ class sparkContext(object):
                 'fun' : rdd.fun.__name__
         }
         '''
+        self.worker.logs.info('Get rdd status %s' %(str(rddStatus)))
         type = rddStatus['rdd_type']
+        partition = []
+        for i in range(0, rddStatus['part_len']):
+            partition.append(None)
         if type == self.NORMAL_RDD:
-            rdd = simRDD(self)
+            rdd = simRDD(rddid, self, rddStatus['dependencies'], partition)
         elif type == self.MAP_RDD:
-            rdd = mappedRDD(self, rddStatus['dependencies'], rddStatus['part_len'], rddStatus['fun'])
+            self.worker.logs.info('Prepare getting map rdd')
+            rdd = mappedRDD(rddid, self, rddStatus['dependencies'], partition, rddStatus['fun'])
+            self.worker.logs.info('Getting map rdd ok')
         elif type == self.FLATMAP_RDD:
             pass
         elif type == self.FILTER_RDD:
-            rdd = filterRDD(self, rddStatus['dependencies'], rddStatus['part_len'], rddStatus['fun'])
-
+            rdd = filterRDD(rddid, self, rddStatus['dependencies'], partition, rddStatus['fun'])
+        self.worker.logs.info('initialize rdd')
         self.RDDList.append(rdd)
         return rdd
 
     # assume that we don't store partition data in the sparkContext
     def getPartition(self, rddid, partitionid):
+        self.worker.logs.info('Prepare search rdd')
         rdd = self.searchRdd(rddid)
+        if rdd.partitions[partitionid] != None:
+            return rdd.partitions[partitionid]
         dependencyList = rdd.get_dependencies_list(partitionid)
+        self.worker.logs.info('Get the dependency list ok')
         dataList = []
         if dependencyList == []:
             partition = self.worker.fetch_data(rddid, partitionid, self.driverhost, self.driverport)
+            self.worker.logs.info('Fetch raw data ok')
         else:
             for d in dependencyList:
                 dataList.append(self.getPartition(d['rdd'], d['partition']))
+            self.worker.logs.info('Prepare ok,data is {%s}' % (str(dataList)))
             partition = rdd.compute(dataList, rddid, partitionid)
+        self.worker.logs.info('Get the partition ok with rdd %d and part %d' % (rddid, partitionid))
         return partition
 
     def searchRdd(self, rddid):
+        self.searchLock.acquire()
         for e in self.RDDList:
-            if e.id == rddid:
+            if e.rid == rddid:
+                self.searchLock.release()
                 return e
         rdd = self.getRdd(rddid)
+        self.searchLock.release()
         return rdd
 
-    def searchPartition(self, rddid, pid):
-        for e in self.partitionList:
-            if e.id == rddid & e.pid == pid:
-                return e
-        rdd = self.getPartition(rddid, pid)
-        return rdd
+    # def searchPartition(self, rddid, pid):
+    #     for e in self.partitionList:
+    #         if e.id == rddid & e.pid == pid:
+    #             return e
+    #     rdd = self.getPartition(rddid, pid)
+    #     return rdd
 
-    def sendResult(self, result, rddid, pid):
-        self.worker.send_result(result, rddid, pid, self.driverhost, self.driverport)
+    def sendResult(self, rddid, pid):
+        self.worker.send_result(rddid, pid, self.driverhost, self.driverport)
 
+    def get_partition_data(self, rid, pid):
+        rdd = self.searchRdd(rid)
+        if not rdd:
+            return None
+        self.worker.logs.info('return all the partition %s with pid %d' % (str(rdd.partitions), pid))
+        data = rdd.partitions[pid]
+        return data
 
-class simRDD:
+class simRDD(object):
     rdd_count = 0
 
     STORE_NONE = 0
@@ -150,15 +160,16 @@ class simRDD:
     BUILDIN = 0
     FREESOURCE = 1
 
-    def __init__(self, ctx, dep=[], part=[], s_lvl=STORE_NONE):
+    def __init__(self, rid, ctx, dep=[], part=[], s_lvl=STORE_NONE):
+        self.rid = rid
         self.context = ctx
         self.dependencies = dep
         self.partitions = part
-        for p in self.partitions:
-            p.set_rdd(self.rdd_id)
         self.storage_lvl = s_lvl
         self.fun = None
         self.funtype = simRDD.BUILDIN
+        self.pdata = []
+        self.setLock = threading.Lock()
 
     @property
     def after_shuffle(self):
@@ -171,18 +182,25 @@ class simRDD:
     def _1on1_dependencies(self, part):
         return [{
             'rdd': self.dependencies[0],
-            'partition': [self.dependencies[0].partitions[part.idx]]
+            'partition': part
         }]
 
     def get_dependencies_list(self, part):
         return []
 
-    def compute(self, dep_list):
+    def compute(self, dep_list, rid, pid):
         return []
 
+    def set_partition(self, pid, result):
+        self.setLock.acquire()
+        self.partitions[pid] = result
+        self.context.worker.logs.info('partition list:%s' % (str(self.partitions)))
+        self.setLock.release()
+
+
 class mappedRDD(simRDD):
-    def __init__(self, ctx, dep, part, fun, ftype=simRDD.FREESOURCE, s_lvl=simRDD.STORE_NONE):
-        super(mappedRDD, self).__init__(ctx, dep, part, s_lvl)
+    def __init__(self, rid, ctx, dep, part, fun, ftype=simRDD.FREESOURCE, s_lvl=simRDD.STORE_NONE):
+        super(mappedRDD, self).__init__(rid, ctx, dep, part, s_lvl)
         self.fun = fun
         self.funtype = ftype
 
@@ -193,11 +211,13 @@ class mappedRDD(simRDD):
     def get_dependencies_list(self, part):
         return self._1on1_dependencies(part)
 
-    def compute(self, dep_list):
+    def compute(self, dep_list, rid, pid):
+        self.context.worker.logs.info('into the compute')
         res = []
         last_part = dep_list[0]
         for e in last_part:
             res.append(self.buildin(e))
+        return res
 
     def buildin(self, x):
         if x < 4:
@@ -205,8 +225,8 @@ class mappedRDD(simRDD):
         return x
 
 class flatMappedRDD(simRDD):
-    def __init__(self, ctx, dep, part, fun, ftype=simRDD.FREESOURCE, s_lvl=simRDD.STORE_NONE):
-        super(flatMappedRDD, self).__init__(ctx, dep, part, s_lvl)
+    def __init__(self, rid, ctx, dep, part, fun, ftype=simRDD.FREESOURCE, s_lvl=simRDD.STORE_NONE):
+        super(flatMappedRDD, self).__init__(rid, ctx, dep, part, s_lvl)
         self.fun = fun
         self.funtype = ftype
 
@@ -218,8 +238,8 @@ class flatMappedRDD(simRDD):
         return self._1on1_dependencies(part)
 
 class filterRDD(simRDD):
-    def __init__(self, ctx, dep, part, fun, ftype=simRDD.FREESOURCE, s_lvl=simRDD.STORE_NONE):
-        super(filterRDD, self).__init__(ctx, dep, part, s_lvl)
+    def __init__(self, rid, ctx, dep, part, fun, ftype=simRDD.FREESOURCE, s_lvl=simRDD.STORE_NONE):
+        super(filterRDD, self).__init__(rid, ctx, dep, part, s_lvl)
         self.fun = fun
         self.funtype = ftype
 

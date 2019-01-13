@@ -21,7 +21,7 @@ class SparkConn:
     # return a dict with type and value 2 attributes
     def accept(self):
         c, addr = self.s.accept()
-        resp = c.recv(4096)
+        resp = bytes.decode(c.recv(4096), encoding='utf-8')
         c.close()
         jresp = json.loads(resp)
         pyDict = json.loads(jresp['value'])
@@ -46,7 +46,7 @@ class SparkConn:
         else:
             c = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             c.connect((aimHost, aimPort))
-            flag = c.sendall(self.value)
+            flag = c.sendall(str.encode(self.value))
             if flag == None:
                 return True
             else:
