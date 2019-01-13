@@ -103,7 +103,7 @@ class sparkContext(object):
         else:
             for d in dependencyList:
                 dataList.append(self.getPartition(d['rdd'], d['partition']))
-            self.worker.logs.info('Prepare ok')
+            self.worker.logs.info('Prepare ok,data is {%s}' % (str(dataList)))
             partition = rdd.compute(dataList, rddid, partitionid)
         self.worker.logs.info('Get the partition ok with rdd %d and part %d' % (rddid, partitionid))
         return partition
@@ -188,6 +188,7 @@ class mappedRDD(simRDD):
         return self._1on1_dependencies(part)
 
     def compute(self, dep_list, rid, pid):
+        self.worker.logs.info('into the compute')
         res = []
         last_part = dep_list[0]
         for e in last_part:
