@@ -65,6 +65,7 @@ class workerBody:
         self.fetchLock = None
         self.listener = None
         self.driver_listener = None
+        self.exeLock = threading.Lock()
 
         self.appList = []
 
@@ -256,7 +257,7 @@ class workerBody:
         elist = []
         for i in range(0, num):
             self.logs.info('prepare for the %s executor' % (str(i)))
-            ex = executor.executor(self.exeid, value['app_id'])
+            ex = executor.executor(self.exeid, value['app_id'], self.exeLock)
             self.logs.info('finish for the %s executor' % (str(i)))
             self.executors.append(ex)
             self.executors_status.append(ex.status)
