@@ -130,11 +130,14 @@ class workerBody:
         appid = value['appid']
         rid = value['rid']
         pidx = value['pidx']
-        dport = value['driver_port']
+        dhost = value['host']
+        dport = value['port']
         e = self.search_app_by_id(appid)
+        self.logs.info('get the app,id is %d' % e)
         ctx = self.appList[e].context
         result = ctx.get_partition_data(rid, pidx)
-        wrapmsg = self.wrap_msg(ctx.driverhost, dport, 'fetch_data_ack', result)
+        self.logs.info('get the result, result is %s' % (str(result)))
+        wrapmsg = self.wrap_msg(dhost, dport, 'fetch_data_ack', result)
         self.listener.sendMessage(wrapmsg)
 
     # without changed,need change after use
