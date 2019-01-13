@@ -78,9 +78,7 @@ class workerBody:
             heartbeat_timer.cancel()
 
     def fetch_info(self, rddid, host, port):
-        self.logs.info('into the info function, the params are %d,%s,%d' % (rddid, host, port))
         self.fetchLock.acquire()
-        self.logs.info('Lock acquire ok')
         msg = {
             'rid': rddid,
             'host': self.config['worker_host'],
@@ -88,11 +86,9 @@ class workerBody:
         }
         wrapMsg = self.wrap_msg(host, port, 'fetch_info', msg)
         self.driver_listener.sendMessage(wrapMsg)
-        self.logs.info('Send fetch message ok')
         while True:
             msg = self.driver_listener.accept()
             if msg['type'] == 'fetch_info_ack':
-                self.logs.info('Get ack ok')
                 self.fetchLock.release()
                 return msg['value']
 
@@ -134,23 +130,21 @@ class workerBody:
         dhost = value['host']
         dport = value['port']
         e = self.search_app_by_id(appid)
-        self.logs.info('get the app,id is %d' % e)
         ctx = self.appList[e].context
         result = ctx.get_partition_data(rid, pidx)
-        self.logs.info('get the result, result is %s' % (str(result)))
         wrapmsg = self.wrap_msg(dhost, dport, 'fetch_data_ack', result)
         self.listener.sendMessage(wrapmsg)
 
     # without changed,need change after use
     def load_config(self):
         config = {
-            'master_host': 'localhost',
-            'master_port': 7077,
-            'worker_host': 'localhost',
-            'worker_port': 8801,
+            'master_host': '172.21.0.12',
+            'master_port': 11111,
+            'worker_host': '172.21.0.14',
+            'worker_port': 11111,
             'webui_port': 8080,
-            'fetch_port': 9000,
-            'worker_timeout': 60000,
+            'fetch_port': 11112,
+            'worker_timeout': 60,
             'spread_out': True,
             'default_core': -1,
             'reaper_iteration': 15,
@@ -184,32 +178,18 @@ class workerBody:
             self.logs.warning('Failed to read the right executor')
 
     def send_executor_status(self):
-        self.logs.info('into the send_executor function')
-        #self.logs.info('executorlist:%s' % (str(self.executors)))
-        #self.logs.info('executorstatus:%s' % (str(self.executors_status)))
         renew_list = []
         exelen = len(self.executors)
         for e in range(0, exelen):
             exe = self.executors[e]
             if exe.status != self.executors_status[e]:
                 renew_list.append({
-                    'id': exe.id,
+                    'id': exe.eid,
                     'status': exe.status,
                     'app_id': exe.appid
                 })
                 self.executors_status[e] = exe.status
-        # renew_list.append({
-        #    'id': -1,
-        #    'status': 'WAIT',
-        #    'app_id': 1
-        # })
-        # renew_list.append({
-        #    'id': 1,
-        #    'status': 'RUNNING',
-        #    'appid': 1
-        # })
         if not(renew_list == []):
-            self.logs.info('Trying to send executor message')
             msg = {
                 'id': self.workerid,
                 'host': self.config['worker_host'],
@@ -219,8 +199,7 @@ class workerBody:
             wrappedmsg = self.wrap_msg(self.config['master_host'], self.config['master_port'], 'update_executors', msg)
             self.listener.sendMessage(wrappedmsg)
         # check if there is an executor is completed
-        self.logs.info('The update status ok')
-        self.logs.info('Update execcutors %s' % str(renew_list))
+        self.logs.info('Update executors %s' % str(renew_list))
         eid_list = []
         for nex in renew_list:
             if nex['status'] == 'COMPLETED':
@@ -244,11 +223,9 @@ class workerBody:
             self.logs.info('Kill the executor with eid:%d', eid)
             del self.executors[pos]
             del self.executors_status[pos]
-            self.logs.info('Left executors:%s' % str(self.executors))
 
     # todo
     def req_executor(self, value):
-        self.logs.info('Entered the req_executor function, the value is %s' %(str(value)))
         num = value['number']
         
         # host = value['host']
@@ -256,9 +233,7 @@ class workerBody:
         # self.appId = value['app_id']
         elist = []
         for i in range(0, num):
-            self.logs.info('prepare for the %s executor' % (str(i)))
             ex = executor.executor(self.exeid, value['app_id'], self.exeLock)
-            self.logs.info('finish for the %s executor' % (str(i)))
             self.executors.append(ex)
             self.executors_status.append(ex.status)
             idmsg = {
@@ -392,7 +367,6 @@ class workerBody:
         tick(5.0, self.register_worker)
         while True:
             msg = self.listener.accept()
-            self.logs.info('Receive a regmsg:{%s}' % str(msg))
             if msg['type'] == 'register_worker_success':
                 self.reg_succ_worker(msg['value'])
                 self.logs.info('register successed.')
@@ -403,14 +377,8 @@ class workerBody:
         timer = None
         heartbeat_tick(10.0, self.send_heartbeat)
         tick(5.0, self.send_executor_status)
-        #self.logs.info('fetch info:%s '% str(self.fetch_info(1, '172.21.0.3', 11111)))
-        #self.logs.info('fetch data:%s '% (str(self.fetch_data(2, 1, '172.21.0.3', 11111))))
         while True:
             msg = self.listener.accept()
-            self.logs.info('Receive a msg:{%s}' % str(msg))
-            self.logs.info('Its value is:{%s}' % str(msg['value']))
-            # print str(msg)
-            # print str(msg['value'])
             self.process(msg)
 
 app = workerBody()

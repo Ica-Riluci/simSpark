@@ -56,7 +56,7 @@ class Application:
             'master_host': '172.21.0.12',
             'master_port' : 11111,
             'webui_port' : 8080,
-            'worker_timeout' : 60000,
+            'worker_timeout' : 60,
             'spread_out' : True,
             'default_core' : -1,
             'reaper_iteration' : 15,
@@ -72,7 +72,7 @@ class Application:
             self.logs.warning('Failed to read configuration. Use default instead.')
         return config
     
-    # # signal sent
+    # signal sent
     def periodical_signal(self):
         msg = self.wrap_msg(self.config['master_host'], self.config['master_port'], 'check_worker_TO', None)
         self.listener.sendMessage(msg)
@@ -188,14 +188,6 @@ class Application:
             'request_resource',
             value
         ))
-
-    # def inform_wait_allocation(self, driver):
-    #     self.listener.sendMessage(self.wrap_msg(
-    #         driver.host,
-    #         driver.port,
-    #         'wait_allocation',
-    #         None
-    #     ))
     
     def inform_app_still_running(self, driver):
         self.listener.sendMessage(self.wrap_msg(
@@ -234,24 +226,15 @@ class Application:
         return None
     
     def search_application_by_id(self, aid):
-        # self.logs.info('Start check')
         for a in range(0, len(self.apps)):
-            # self.logs.info('Checking app %d' % a)
-            # self.logs.info(str(self.apps[a].app_id))
             if self.apps[a].app_id == aid:
                 return a
         return None
 
     def search_executor_by_id(self, e_id):
-        # self.logs.info(str(self.executors))
         for ex in range(0, len(self.executors)):
-            # self.logs.info('Check executor %d' % ex)
-            # self.logs.info('Executor ID: %d' % self.executors[ex].executor_id)
-            # self.logs.info('type: %s value: %s' % (str(type(e_id)), str(e_id)))
             if self.executors[ex].executor_id == e_id:
-                # self.logs.info('Found executor %d' % e_id)
                 return ex
-        # self.logs.info('Find Nothing')
         return None
 
     def search_worker_by_id(self, wid):
@@ -309,11 +292,8 @@ class Application:
                 self.logs.warning('The executor [%d] does not exist.' % (e))
 
     def check_application_ready(self, aid):
-        # self.logs.info('Check app %d' % (aid))
         app_idx = self.search_application_by_id(aid)
-        # self.logs.info('app_idx: %d' % app_idx)
         if app_idx != None:
-            # self.logs.info('App %d status: %s' % (aid, self.apps[app_idx].state))
             if self.apps[app_idx].state == 'WAIT':
                 if len(self.apps[app_idx].executor_list) >= self.apps[app_idx].executors_req:
                     self.logs.info('The resource request of App [%d] is met' % aid)
@@ -333,9 +313,7 @@ class Application:
                 self.executors.append(new_executor)
                 self.workers[worker_idx].executor_list.append(new_executor)
                 self.apps[app_idx].executor_list.append(new_executor)
-                # self.logs.info('Feedback to %s for executor %d' % (new_executor.host, new_executor.executor_id))
                 self.feedback_executor(new_executor, eid)
-                # self.logs.info('Check app %d' % (aid))
                 self.check_application_ready(aid)
             else:
                 self.logs.error('Application %d does not exist.' % (aid))
@@ -345,7 +323,6 @@ class Application:
 
     # reaction to message
     def check_workers_heartbeat(self):
-        # self.logs.info('The number of threads: %d' % len(threading.enumerate()))
         self.logs.info('Checking a worker list at a length of %d' % len(self.workers))
         for worker in self.workers:
             if worker.alive:
@@ -550,16 +527,11 @@ class Application:
                 w.worker_id,
                 len(w.executor_list)
             )
-        # if len(payload_heap.heap) < 2:
-        #     self.logs.error('No resource can be allocated.')
-        #     self.inform_no_resource(self.drivers[d_idx])
-        #     return
         for i in range(0, req['number']):
             asstable[payload_heap.heap[1]['id']] += 1
             payload_heap.add_payload()
         for k in asstable.keys():
             self.request_resource(int(k), asstable[k], self.drivers[d_idx].app_id)
-        # self.inform_wait_allocation(self.drivers[d_idx])
 
     def kill_driver(self, did):
         d_idx = self.search_driver_by_id(did)
@@ -614,9 +586,6 @@ class Application:
         while True:
             msg = self.listener.accept()
             self.dispensor(msg)
-            # time.sleep(1)
-            # self.logs.info(time.ctime())
-            # pass
         
     def __del__(self):
         global timer

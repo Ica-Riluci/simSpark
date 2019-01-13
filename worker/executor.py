@@ -25,7 +25,6 @@ class executor(threading.Thread):
         self.context.worker.logs.info('Executor %d start the main function' % self.eid)
         self.status = 'RUNNING'
         result = self.context.getPartition(self.rdd_id, self.partition_id)
-        self.context.worker.logs.info('After executor %d getting the new partition' % self.eid)
         # store the result in rdd
         rdd = self.context.searchRdd(self.rdd_id)
         self.lock.acquire()
@@ -33,9 +32,6 @@ class executor(threading.Thread):
         rdd.set_partition(self.partition_id, result)
         self.context.worker.logs.info('Lock End')
         self.lock.release()
-        # rdd.partitions[self.partition_id] = result
-        self.context.worker.logs.info('rid:%d pid:%d res:%s result' % (self.rdd_id, self.partition_id, str(result)))
-        self.context.worker.logs.info('partitionist %s' % (str(rdd.partitions)))
         # todo send the result out to the driver
         self.context.sendResult(self.rdd_id, self.partition_id)
         self.status = 'COMPLETED'
@@ -70,18 +66,7 @@ class sparkContext(object):
         # self.partitionList = []
 
     def getRdd(self, rddid):
-        self.worker.logs.info('Prepare getting rdd')
         rddStatus = self.worker.fetch_info(rddid, self.driverhost, self.driverport)
-        '''
-        value = {
-                'rdd_type' : rdd.type,
-                'part_len' : len(rdd.partitions),
-                'dependencies' : dep,
-                'funtype' : rdd.funtype,
-                'fun' : rdd.fun.__name__
-        }
-        '''
-        self.worker.logs.info('Get rdd status %s' %(str(rddStatus)))
         type = rddStatus['rdd_type']
         partition = []
         for i in range(0, rddStatus['part_len']):
@@ -102,22 +87,17 @@ class sparkContext(object):
 
     # assume that we don't store partition data in the sparkContext
     def getPartition(self, rddid, partitionid):
-        self.worker.logs.info('Prepare search rdd')
         rdd = self.searchRdd(rddid)
         if rdd.partitions[partitionid] != None:
             return rdd.partitions[partitionid]
         dependencyList = rdd.get_dependencies_list(partitionid)
-        self.worker.logs.info('Get the dependency list ok')
         dataList = []
         if dependencyList == []:
             partition = self.worker.fetch_data(rddid, partitionid, self.driverhost, self.driverport)
-            self.worker.logs.info('Fetch raw data ok')
         else:
             for d in dependencyList:
                 dataList.append(self.getPartition(d['rdd'], d['partition']))
-            self.worker.logs.info('Prepare ok,data is {%s}' % (str(dataList)))
             partition = rdd.compute(dataList, rddid, partitionid)
-        self.worker.logs.info('Get the partition ok with rdd %d and part %d' % (rddid, partitionid))
         return partition
 
     def searchRdd(self, rddid):
@@ -130,13 +110,6 @@ class sparkContext(object):
         self.searchLock.release()
         return rdd
 
-    # def searchPartition(self, rddid, pid):
-    #     for e in self.partitionList:
-    #         if e.id == rddid & e.pid == pid:
-    #             return e
-    #     rdd = self.getPartition(rddid, pid)
-    #     return rdd
-
     def sendResult(self, rddid, pid):
         self.worker.send_result(rddid, pid, self.driverhost, self.driverport)
 
@@ -144,7 +117,6 @@ class sparkContext(object):
         rdd = self.searchRdd(rid)
         if not rdd:
             return None
-        self.worker.logs.info('return all the partition %s with pid %d' % (str(rdd.partitions), pid))
         data = rdd.partitions[pid]
         return data
 
@@ -194,7 +166,6 @@ class simRDD(object):
     def set_partition(self, pid, result):
         self.setLock.acquire()
         self.partitions[pid] = result
-        self.context.worker.logs.info('partition list:%s' % (str(self.partitions)))
         self.setLock.release()
 
 
@@ -212,7 +183,6 @@ class mappedRDD(simRDD):
         return self._1on1_dependencies(part)
 
     def compute(self, dep_list, rid, pid):
-        self.context.worker.logs.info('into the compute')
         res = []
         last_part = dep_list[0]
         for e in last_part:

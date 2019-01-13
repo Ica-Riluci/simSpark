@@ -48,6 +48,10 @@ The project is meant to implement a `simSpark` system which can finish some simp
 
 ![Structure](README_pic/1.png)
 
+All official and third-party library used:
+
+`sys`,`time`,`json`,`threading`,`logging`,`datetime`,`os`,`inspect`,`binascii`,`functools`,`signal`,`fcntl`,`subprocess`,`pickle`
+
 ### Master Node
 
 The master of `simSpark` works as a daemon in a node of the cluster. The node is called `master node`. A master should be able to manage the resource of the cluster and help the communication between workers and applications.

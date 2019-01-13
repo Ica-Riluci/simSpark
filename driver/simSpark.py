@@ -15,7 +15,6 @@ from publib.SparkConn import *
 
 class simApp:
     def __init__(self, name='asimApp'):
-        # print('A new app <%s>' % name)
         self.app_name = name
         self.app_id = None
         self.status = 'WAIT'
@@ -34,7 +33,6 @@ class backendComm(threading.Thread):
         self.running.set()
 
     def query_rdd(self, q):
-        print('RDD #%d queried by %s' % (q['rid'], q['host']))
         rdd = self.context.search_rdd_by_id(q['rid'])
         if not rdd:
             self.lis.sendMessage(self.context.wrap_msg(
@@ -64,7 +62,6 @@ class backendComm(threading.Thread):
             ))
 
     def query_partition(self, q):
-        print('RDD #%d partition #%d queried by %s' % (q['rid'], q['pidx'], q['host']))
         rdd = self.context.search_rdd_by_id(q['rid'])
         if not rdd:
             self.lis.sendMessage(self.context.wrap_msg(
@@ -104,7 +101,6 @@ class backendComm(threading.Thread):
                     ))
 
     def update_task(self, u):
-        print(u)
         rdd = self.context.search_rdd_by_id(u['rid'])
         if not rdd:
             self.lis.sendMessage(self.context.wrap_msg(
@@ -291,6 +287,8 @@ class simContext:
         for i in range(0, fineness):
             l = len(arr) // fineness * i
             r = len(arr) // fineness * (i + 1)
+            if i == fineness - 1:
+                r = len(arr)
             data = arr[l:r]
             new_par = simPartition(self, i, data)
             part.append(new_par)
@@ -406,13 +404,11 @@ class simPartition:
     
     @property
     def records(self):
-        print('Checking record of RDD #%d Partition #%d' % (self.rdd_id, self.idx))
         if self.method == simPartition.MEMORY:
             if self.local:
                 return self.source
             else:
                 self.local = True
-                print('Fetching from source %s:%d' % (self.source[0], self.source[1]))
                 data = self.context.fetch_partition(self.source, self.rdd_id, self.idx, frommem=True)
                 self.source = data
                 return data
@@ -547,15 +543,11 @@ class simRDD:
     
     # actions
     def reduce(self, fun):
-        print(self.partitions)
         self.calc()
         while not self.context.search_stage_by_rdd(self.rdd_id).done:
             continue
         col = []
         for part in self.partitions:
-            print(part.source)
-            print(part.local)
-            print(part.records)
             ret = part.records[0]
             restrec = part.records[1:]
             for rec in restrec:
@@ -653,9 +645,7 @@ class simStage:
                         break
                     continue
                 executor = self.context.app.idle_executors.pop()
-                print('#' + str(executor['executor_id']) + ' executor for partition #' + str(part.idx))
                 self.context.pend_task(executor, self.rdd.rdd_id, part.idx)
-                # self.context.app.busy_executors.append(executor)
                 break
 
     @property
