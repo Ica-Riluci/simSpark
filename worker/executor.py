@@ -24,7 +24,8 @@ class executor(threading.Thread):
         self.context.worker.logs.info('After executor %d getting the new partition' % self.eid)
         # store the result in rdd
         rdd = self.context.searchRdd(self.rdd_id)
-        rdd.partitions[self.partition_id] = result
+        rdd.set_partition(self.partition_id, result)
+        # rdd.partitions[self.partition_id] = result
         self.context.worker.logs.info('rid:%d pid:%d res:%s result' % (self.rdd_id, self.partition_id, str(result)))
         self.context.worker.logs.info('rddlist %s' % (str(self.context.RDDList)))
         # todo send the result out to the driver
@@ -160,6 +161,7 @@ class simRDD(object):
         self.fun = None
         self.funtype = simRDD.BUILDIN
         self.pdata = []
+        self.setLock = threading.Lock()
 
     @property
     def after_shuffle(self):
@@ -180,6 +182,12 @@ class simRDD(object):
 
     def compute(self, dep_list, rid, pid):
         return []
+
+    def set_partition(self, pid, result):
+        self.setLock.acquire()
+        self.partitions[pid] = result
+        self.setLock.release()
+
 
 class mappedRDD(simRDD):
     def __init__(self, rid, ctx, dep, part, fun, ftype=simRDD.FREESOURCE, s_lvl=simRDD.STORE_NONE):
