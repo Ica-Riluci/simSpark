@@ -26,7 +26,7 @@ class executor(threading.Thread):
         rdd = self.context.searchRdd(self.rdd_id)
         rdd.partitions[self.partition_id] = result
         self.context.worker.logs.info('rid:%d pid:%d res:%s result' % (self.rdd_id, self.partition_id, str(result)))
-        self.context.worker.logs.info('partition result %s' % (str(rdd.partitions)))
+        self.context.worker.logs.info('rddlist %s' % (str(self.context.RDDList)))
         # todo send the result out to the driver
         self.context.sendResult(self.rdd_id, self.partition_id)
         self.status = 'COMPLETED'
@@ -57,6 +57,7 @@ class sparkContext(object):
         self.driverport = port
         self.worker = worker
         self.RDDList = []
+        self.searchLock = threading.Lock()
         # self.partitionList = []
 
     def getRdd(self, rddid):
@@ -111,10 +112,12 @@ class sparkContext(object):
         return partition
 
     def searchRdd(self, rddid):
+        self.searchLock.acquire()
         for e in self.RDDList:
             if e.rid == rddid:
                 return e
         rdd = self.getRdd(rddid)
+        self.searchLock.release()
         return rdd
 
     # def searchPartition(self, rddid, pid):
