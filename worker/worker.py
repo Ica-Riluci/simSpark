@@ -317,11 +317,14 @@ class workerBody:
         appid = value['app_id']
         host = value['host']
         port = value['port']
-        app = self.search_app_by_id(appid)
-        if not app:
-            app = self.add_app(appid, host, port)
+        app_pos = self.search_app_by_id(appid)
+        if app_pos == None:
+            self.add_app(appid, host, port)
+            app_pos = len(self.appList) - 1
+        app = self.appList[app_pos]
         index = self.search_executor_by_id(eid)
         if index != None:
+            self.logs.info("appis:%s, ctxis:%s" % (str(app), str(app.context)))
             self.executors[index].setId(rid, pid, app.context)
             self.logs.info("Executor %d begin" % eid)
             self.executors[index].start()

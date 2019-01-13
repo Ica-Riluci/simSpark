@@ -29,11 +29,13 @@ class executor(threading.Thread):
         # store the result in rdd
         rdd = self.context.searchRdd(self.rdd_id)
         self.lock.acquire()
+        self.context.worker.logs.info('Lock Start')
         rdd.set_partition(self.partition_id, result)
+        self.context.worker.logs.info('Lock End')
         self.lock.release()
         # rdd.partitions[self.partition_id] = result
         self.context.worker.logs.info('rid:%d pid:%d res:%s result' % (self.rdd_id, self.partition_id, str(result)))
-        self.context.worker.logs.info('rddlist %s' % (str(self.context.RDDList)))
+        self.context.worker.logs.info('partitionist %s' % (str(rdd.partitions)))
         # todo send the result out to the driver
         self.context.sendResult(self.rdd_id, self.partition_id)
         self.status = 'COMPLETED'
