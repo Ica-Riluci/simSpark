@@ -171,7 +171,7 @@ class simRDD(object):
     def get_dependencies_list(self, part):
         return []
 
-    def compute(self, dep_list):
+    def compute(self, dep_list, rid, pid):
         return []
 
 class mappedRDD(simRDD):
@@ -187,7 +187,7 @@ class mappedRDD(simRDD):
     def get_dependencies_list(self, part):
         return self._1on1_dependencies(part)
 
-    def compute(self, dep_list):
+    def compute(self, dep_list, rid, pid):
         res = []
         last_part = dep_list[0]
         for e in last_part:
