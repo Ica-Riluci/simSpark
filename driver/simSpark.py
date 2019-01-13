@@ -132,7 +132,7 @@ class backendComm(threading.Thread):
                 stage.task_done[u['pidx']] = True
                 if stage.done:
                     stage.finish()
-                self.lis.sendMessage(self.context.wrap_msp(
+                self.lis.sendMessage(self.context.wrap_msg(
                     u['host'],
                     u['port'],
                     'task_finished_ack',
