@@ -115,6 +115,7 @@ class sparkContext(object):
         self.searchLock.acquire()
         for e in self.RDDList:
             if e.rid == rddid:
+                self.searchLock.release()
                 return e
         rdd = self.getRdd(rddid)
         self.searchLock.release()
